@@ -59,31 +59,25 @@ public:
 	void OperatorControl(void) {
 		myRobot.SetSafetyEnabled(true);
 		DriverStationLCD* screen = DriverStationLCD::GetInstance();
-		char message[50];
 		rightDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 		leftDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 		compressor.Start();
 		frontWheel.Set(0);
 		backWheel.Set(0);
 		
+		//***********************************************
+		//******************MAIN LOOP********************
+		//**********************************************
 		
-
 		while (IsOperatorControl()) {
 
 			// drive with arcade style using the controller
-			myRobot.ArcadeDrive(controller.GetY(), controller.GetX());
+			myRobot.ArcadeDrive(controller.GetY(), controller.GetRawAxis(3));
 
-			//
 			//shooter code with printouts
-			//
-			frontWheel.Set(-1 * (rightStick.GetThrottle() * -1 + 1) / 2);
-			sprintf(message, "front speed: %f", frontWheel.Get() * -1);
-			screen->PrintfLine(DriverStationLCD::kUser_Line1, message);
-
-			backWheel.Set(-1 * (leftStick.GetThrottle() * -1 + 1) / 2);
-			sprintf(message, "back speed: %f", backWheel.Get() * -1);
-			screen->PrintfLine(DriverStationLCD::kUser_Line2, message);
-
+			setShooterSpeeds();
+			printShooterSpeeds(screen);
+			
 			setTiltSpeed();
 
 			//trigger cylinder code
@@ -98,6 +92,8 @@ public:
 		}
 	}
 
+	
+	
 	/**
 	 * Runs during test mode
 	 */
@@ -110,7 +106,7 @@ public:
 	//**************************************************************
 
 	int tickValue;
-	int tiltMotorValue;
+	float tiltMotorValue;
 
 	void trackTicks() {
 		bool lastTrue = false;
@@ -166,7 +162,51 @@ public:
 		tilt.Set(tiltMotorValue);
 	
 	}
+	
+	//**************************************************************
+	//**********************end shooter tilt code*******************
+	//**************************************************************
+	
+	
+	//**************************************************************
+	//***********************start shooter code*********************
+	//**************************************************************
+	
+	float frontShooterSpeed;
+	float backShooterSpeed;
+	
+	void determineShooterSpeeds(){
+		
+		
+		if(leftStick.GetRawButton(3)){
+			frontShooterSpeed =.65;
+			backShooterSpeed = .45;
+		}else{
+			frontShooterSpeed = (-1 * (rightStick.GetThrottle() * -1 + 1) / 2);
+			//sprintf(message, "front speed: %f", frontWheel.Get() * -1);
+			//screen->PrintfLine(DriverStationLCD::kUser_Line1, message);
 
+			backShooterSpeed = (-1 * (leftStick.GetThrottle() * -1 + 1) / 2);
+			//sprintf(message, "back speed: %f", backWheel.Get() * -1);
+			//screen->PrintfLine(DriverStationLCD::kUser_Line2, message);
+		}
+	}
+	
+	void setShooterSpeeds(){
+		determineShooterSpeeds();
+		frontWheel.Set(frontShooterSpeed);
+		backWheel.Set(backShooterSpeed);
+	}
+	
+	void printShooterSpeeds(DriverStationLCD* dsScreen){
+		dsScreen->PrintfLine(DriverStationLCD::kUser_Line1, "Front Wheel Speed: %f", frontShooterSpeed);
+		dsScreen->PrintfLine(DriverStationLCD::kUser_Line2, "Back  Wheel Speed: %f", backShooterSpeed);
+	}
+
+	//**************************************************************
+	//**********************End Shooter Code************************
+	//**************************************************************
+	
 };
 
 START_ROBOT_CLASS(RobotDemo)
