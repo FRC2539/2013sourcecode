@@ -1,14 +1,12 @@
 #include "WPILib.h"
-#include "ShooterTilt.h"
 /**
  * This is a demo program showing the use of the RobotBase class.
  * The SimpleRobot class is the base of a robot application that will automatically call your
  * Autonomous and OperatorControl methods at the right time as controlled by the switches on
  * the driver station or the field controls.
- */ 
-class RobotDemo : public SimpleRobot
-{
-	
+ */
+class RobotDemo: public SimpleRobot {
+
 	Joystick rightStick;
 	Joystick leftStick;
 	Joystick controller;
@@ -17,12 +15,15 @@ class RobotDemo : public SimpleRobot
 	CANJaguar tilt;
 	CANJaguar rightDrive;
 	CANJaguar leftDrive;
+	DigitalInput tiltBottom;
+	DigitalInput tiltTop;
+	DigitalInput tiltEncoder;
 	DoubleSolenoid trigger;
 	Compressor compressor;
 	RobotDrive myRobot; // robot drive system
 public:
-	RobotDemo(void):
-		
+	RobotDemo(void) :
+
 		rightStick(1),
 		leftStick(2),
 		controller(3),
@@ -31,9 +32,12 @@ public:
 		tilt(2),
 		rightDrive(6),
 		leftDrive(4),
-		trigger(1,2),// as they are declared above.
-		compressor(1,1),
-		myRobot(leftDrive,rightDrive)	// these must be initialized in the same order
+		tiltBottom(2),
+		tiltTop(1),
+		tiltEncoder(3),
+		trigger(1, 2),// as they are declared above.
+		compressor(1, 1),
+		myRobot(leftDrive, rightDrive) // these must be initialized in the same order
 	{
 		myRobot.SetExpiration(0.1);
 		rightDrive.SetVoltageRampRate(24);
@@ -45,16 +49,14 @@ public:
 	/**
 	 * Drive left & right motors for 2 seconds then stop
 	 */
-	void Autonomous(void)
-	{
+	void Autonomous(void) {
 		compressor.Start();
 	}
 
 	/**
 	 * Runs the motors with arcade steering. 
 	 */
-	void OperatorControl(void)
-	{
+	void OperatorControl(void) {
 		myRobot.SetSafetyEnabled(true);
 		DriverStationLCD* screen = DriverStationLCD::GetInstance();
 		char message[50];
@@ -64,55 +66,108 @@ public:
 		frontWheel.Set(0);
 		backWheel.Set(0);
 		
-		while (IsOperatorControl())
-		{
-			
+		
+
+		while (IsOperatorControl()) {
+
 			// drive with arcade style using the controller
-			myRobot.ArcadeDrive(controller.GetY(),controller.GetX()); 
-			
-			
+			myRobot.ArcadeDrive(controller.GetY(), controller.GetX());
+
 			//
 			//shooter code with printouts
 			//
 			frontWheel.Set(-1 * (rightStick.GetThrottle() * -1 + 1) / 2);
-			sprintf(message,"front speed: %f", frontWheel.Get()*-1);
+			sprintf(message, "front speed: %f", frontWheel.Get() * -1);
 			screen->PrintfLine(DriverStationLCD::kUser_Line1, message);
-			
+
 			backWheel.Set(-1 * (leftStick.GetThrottle() * -1 + 1) / 2);
-			sprintf(message,"back speed: %f", backWheel.Get()*-1);
+			sprintf(message, "back speed: %f", backWheel.Get() * -1);
 			screen->PrintfLine(DriverStationLCD::kUser_Line2, message);
-						
-			//manual shooter tilt control
-			if(rightStick.GetRawButton(3)){
-				tilt.Set(1);
-			}else if(rightStick.GetRawButton(2)){
-				tilt.Set(-1);
-			}else{
-				tilt.Set(0);
-			}
-			
+
+			setTiltSpeed();
+
 			//trigger cylinder code
-			if(rightStick.GetRawButton(1)){
+			if (rightStick.GetRawButton(1)) {
 				trigger.Set(DoubleSolenoid::kForward);
-			}else{
+			} else {
 				trigger.Set(DoubleSolenoid::kReverse);
 			}
-			
+
 			screen->UpdateLCD();
-			Wait(0.005);				// wait for a motor update time
+			Wait(0.005); // wait for a motor update time
 		}
 	}
-	
+
 	/**
 	 * Runs during test mode
 	 */
 	void Test() {
 
 	}
+
+	//**************************************************************
+	//*********************Begin Shooter Tilt Code******************
+	//**************************************************************
+
+	int tickValue;
+	int tiltMotorValue;
+
+	void trackTicks() {
+		bool lastTrue = false;
+		
+		if(tiltEncoder.Get() && !lastTrue){
+			if(tilt.Get()>0){
+			tickValue++;	
+			}else if(tilt.Get()<0){
+				tickValue--;
+			}
+		lastTrue = true;
+		}
+		if(!tiltEncoder.Get()){
+			lastTrue = false;
+		}
+	}
 	
+	void manualTiltControl(){
+		//manual shooter tilt control
+		if (rightStick.GetRawButton(3)) {
+			tiltMotorValue = 1;
+		} else if (rightStick.GetRawButton(2)) {
+			tiltMotorValue = -1;
+		} else {
+			tiltMotorValue = 0;
+		}
+	}
 	
+	void tiltToPoint(int point){
+		if(tickValue > point){
+			tiltMotorValue = 1;
+		}else if(tickValue < point){
+			tiltMotorValue = -1;
+		}else{
+			tiltMotorValue = 0;
+		}
+	}
+	
+	void setTiltSpeed(){
+		if(rightStick.GetRawButton(3)||rightStick.GetRawButton(2)){
+			manualTiltControl();
+		}else if(rightStick.GetRawButton(4)){
+			tiltToPoint(0);
+		}
+		
+		if(tiltBottom.Get() && tiltMotorValue < 0){
+			tiltMotorValue = 0;
+		}
+		if(tiltTop.Get() && tiltMotorValue > 0){
+			tiltMotorValue = 0;
+		}
+		
+		tilt.Set(tiltMotorValue);
+	
+	}
+
 };
 
-START_ROBOT_CLASS(RobotDemo);
-
-
+START_ROBOT_CLASS(RobotDemo)
+;
