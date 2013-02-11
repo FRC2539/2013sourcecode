@@ -47,7 +47,15 @@ public:
 	 */
 	void Autonomous(void)
 	{
-		compressor.Start();
+        if ( ! compressor.Enabled())
+        {
+            compressor.Start();
+        }
+
+        while (IsAutonomous() && IsEnabled())
+        {
+
+        }
 	}
 
 	/**

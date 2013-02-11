@@ -1,7 +1,10 @@
+#ifndef SHOOTERTILT_H
+#define SHOOTERTILT_H
+
 #include "CANJaguar.h"
 #include "DigitalInput.h"
 
-class ShooterTilt{
+class ShooterTilt {
 public:
 	
 	ShooterTilt(CANJaguar m, DigitalInput s);
@@ -9,7 +12,7 @@ public:
 	
 	void goToPosition(int position);
 	void goHome();
-	void changeAngle(int difference);
+	void changePosition(int difference);
 	
 private:
 	
@@ -17,3 +20,5 @@ private:
 	DigitalInput counterSwitch;
 	
 };
+
+#endif

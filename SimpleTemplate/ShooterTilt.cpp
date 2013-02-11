@@ -1,19 +1,23 @@
 #include "ShooterTilt.h"
 #include "WPILib.h"
 
-ShooterTilt(CANJaguar m,DigitalInput s) {
+ShooterTilt(CANJaguar m,DigitalInput s)
+{
 	motor = m;
 	counterSwitch = s;
 }
 
-void goToPosition(int position){
+void goToPosition(int position)
+{
 	
 }
 
-void goHome(){
+void goHome()
+{
 	
 }
 
-void changeAngle(int difference){
+void changePosition(int difference)
+{
 	
 }
