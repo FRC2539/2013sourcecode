@@ -1,5 +1,9 @@
 #include "WPILib.h"
+#include "Shooter.h"
 #include "ShooterTilt.h"
+#include <cmath>
+
+using namespace std;
 
 /**
  * A robot to play Ultimate Ascent.
@@ -63,6 +67,11 @@ public:
 		setupRobot();
 
 		DriverStationLCD* screen = DriverStationLCD::GetInstance();
+		bool triggerPressed = false;
+		bool triggerWasPressed = rightStick.GetRawButton(1);
+
+		double oldShooterSpeed = getThrottleSpeed();
+		double shooterSpeed = 0;
 		
 		while (IsOperatorControl() && IsEnabled())
 		{
@@ -81,28 +90,25 @@ public:
 				tilt.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 			}
 			screen->PrintfLine(DriverStationLCD::kUser_Line4, 'Shooter Position: %i', shooterTilt.getPosition());
+
+			shooterSpeed = getThrottleSpeed();
+
+			if (abs(shooterSpeed - oldShooterSpeed) >= 0.01)
+			{
+				shooter.setSpeed(shooterSpeed);
+			}
+			screen->PrintfLine(DriverStationLCD::kUser_Line1, 'Front Wheel: %4.2d%%', shooter.getFrontSpeed());
+			screen->PrintfLine(DriverStationLCD::kUser_Line2, 'Back Wheel: %4.2d%%', shooter.getBackSpeed());
+
+			triggerPressed = rightStick.GetRawButton(1);
+			if (triggerPressed && ! triggerWasPressed)
+			{
+				shooter.fire();
+			}
+			triggerWasPressed = triggerPressed;
 			
 			// drive with arcade style using the controller
 			myRobot.ArcadeDrive(controller.GetY(),controller.GetX()); 
-			
-			
-			//
-			//shooter code with printouts
-			//
-			frontWheel.Set(-1 * (rightStick.GetThrottle() * -1 + 1) / 2);
-			sprintf(message,"front speed: %f", frontWheel.Get()*-1);
-			screen->PrintfLine(DriverStationLCD::kUser_Line1, message);
-			
-			backWheel.Set(-1 * (leftStick.GetThrottle() * -1 + 1) / 2);
-			sprintf(message,"back speed: %f", backWheel.Get()*-1);
-			screen->PrintfLine(DriverStationLCD::kUser_Line2, message);
-			
-			//trigger cylinder code
-			if(rightStick.GetRawButton(1)){
-				trigger.Set(DoubleSolenoid::kForward);
-			}else{
-				trigger.Set(DoubleSolenoid::kReverse);
-			}
 			
 			screen->UpdateLCD();
 			Wait(0.005);				// wait for a motor update time
@@ -128,6 +134,7 @@ protected:
 	DoubleSolenoid trigger;
 	Compressor compressor;
 	RobotDrive myRobot;
+	Shooter shooter;
 	ShooterTilt shooterTilt;
 
 	void setupRobot()
@@ -136,11 +143,18 @@ protected:
 
 		compressor.Start();
 
-		frontWheel.Set(0);
-		backWheel.Set(0);
+		shooter.setSpeed(0);
+
+		if (shooterTilt.getPosition() == -1)
+		{
+			shooterTilt.goHome();
+		}
 	}
 	
-	
+	double getThrottleSpeed()
+	{
+		return (rightStick.GetThrottle * -1 + 1) / 2;
+	}
 };
 
 START_ROBOT_CLASS(FrisbeeBot);
