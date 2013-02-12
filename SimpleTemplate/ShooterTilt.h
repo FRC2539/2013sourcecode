@@ -21,7 +21,7 @@ public:
 protected:
 
 	static int s_changeTilt(ShooterTilt *shooter);
-	changeTilt();
+	void changeTilt();
 	bool isPressed(DigitalInput& limitSwitch);
 
 	CANJaguar motor;
@@ -31,6 +31,7 @@ protected:
 
 	int currentPosition;
 	int targetPosition;
+	bool inMotion = false;
 
 	int saveFile = 'tilt_position.txt';
 
