@@ -20,28 +20,32 @@ class RobotDemo: public SimpleRobot {
 	DigitalInput tiltEncoder;
 	DoubleSolenoid trigger;
 	Compressor compressor;
-	RobotDrive myRobot; // robot drive system
+	Task t_trackTicks;
+	//RobotDrive myRobot; // robot drive system
+	
+private:
+	
+	
 public:
 	RobotDemo(void) :
 
 		rightStick(1),
 		leftStick(2),
 		controller(3),
-		frontWheel(5),
-		backWheel(3),
+		frontWheel(3),
+		backWheel(5),
 		tilt(2),
 		rightDrive(6),
 		leftDrive(4),
-		tiltBottom(2),
-		tiltTop(1),
-		tiltEncoder(3),
+		tiltBottom(3),
+		tiltTop(2),
+		tiltEncoder(4),
 		trigger(1, 2),// as they are declared above.
 		compressor(1, 1),
-		myRobot(leftDrive, rightDrive) // these must be initialized in the same order
+		t_trackTicks("trackTicks", (FUNCPTR)s_trackTicks)
+		//myRobot(leftDrive, rightDrive) // these must be initialized in the same order
 	{
-		myRobot.SetExpiration(0.1);
-		rightDrive.SetVoltageRampRate(24);
-		leftDrive.SetVoltageRampRate(24);
+		//myRobot.SetExpiration(0.1);
 		rightDrive.ConfigEncoderCodesPerRev(360);
 		leftDrive.ConfigEncoderCodesPerRev(360);
 	}
@@ -57,26 +61,31 @@ public:
 	 * Runs the motors with arcade steering. 
 	 */
 	void OperatorControl(void) {
-		myRobot.SetSafetyEnabled(true);
+		//myRobot.SetSafetyEnabled(true);
 		DriverStationLCD* screen = DriverStationLCD::GetInstance();
 		rightDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 		leftDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
-		compressor.Start();
 		frontWheel.Set(0);
 		backWheel.Set(0);
+		compressor.Start();
+		tickValue = 0;
+		tiltMotorValue = 0;
+		lastTrue = false;
+		t_trackTicks.Start();
 		
-		//***********************************************
-		//******************MAIN LOOP********************
-		//**********************************************
+		//**************************************************************
+		//***************************MAIN LOOP**************************
+		//**************************************************************
 		
 		while (IsOperatorControl()) {
 
+			
+			
 			// drive with arcade style using the controller
-			myRobot.ArcadeDrive(controller.GetY(), controller.GetRawAxis(3));
+			arcadeDrive();
 
 			//shooter code with printouts
 			setShooterSpeeds();
-			printShooterSpeeds(screen);
 			
 			setTiltSpeed();
 
@@ -86,10 +95,22 @@ public:
 			} else {
 				trigger.Set(DoubleSolenoid::kReverse);
 			}
+			
+			screen->PrintfLine(DriverStationLCD::kUser_Line1, "Front Speed: %f", frontWheel.Get());
+			screen->PrintfLine(DriverStationLCD::kUser_Line2, "Back Speed: %f", backWheel.Get());
+			screen->PrintfLine(DriverStationLCD::kUser_Line3, "# ticks :%i", tickValue);
 
 			screen->UpdateLCD();
 			Wait(0.005); // wait for a motor update time
 		}
+		
+		//**************************************************************
+		//************************END MAIN LOOP*************************
+		//**************************************************************
+		
+		t_trackTicks.Stop();
+		rightDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Coast);
+		leftDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Coast);
 	}
 
 	
@@ -100,36 +121,73 @@ public:
 	void Test() {
 
 	}
+	
+	//**************************************************************
+	//**********************Begin Drive Code************************
+	//**************************************************************
+	
+	void arcadeDrive(){
+		float rightPower;
+		float leftPower;
+		
+		
+		
+		rightPower = controller.GetRawAxis(4);
+		leftPower = controller.GetRawAxis(4);
+		
+		
+		
+		rightPower += controller.GetRawAxis(2);
+		leftPower -= controller.GetRawAxis(2);
+		
+		
+		rightDrive.Set(-rightPower);
+		leftDrive.Set(-leftPower);
+		
+	}
 
 	//**************************************************************
 	//*********************Begin Shooter Tilt Code******************
 	//**************************************************************
 
 	int tickValue;
-	float tiltMotorValue;
-
-	void trackTicks() {
-		bool lastTrue = false;
+	int tiltMotorValue;
+	bool lastTrue;
+	
+	
+	static int s_trackTicks(RobotDemo* robot) {
 		
-		if(tiltEncoder.Get() && !lastTrue){
-			if(tilt.Get()>0){
-			tickValue++;	
-			}else if(tilt.Get()<0){
-				tickValue--;
+		robot->trackTicks();
+		return 1;
+	}
+	
+	void trackTicks(){
+		while (true)
+		{
+			if(!tiltEncoder.Get() && !lastTrue){
+				if(tilt.Get() > 0){
+					tickValue++;	
+				}else if(tilt.Get() < 0){
+					tickValue--;
+				}
+				lastTrue = true;
 			}
-		lastTrue = true;
-		}
-		if(!tiltEncoder.Get()){
-			lastTrue = false;
+			
+			if(!tiltEncoder.Get()){
+				lastTrue = false;
+			}
+			
+			Wait(.005);
+			
 		}
 	}
 	
 	void manualTiltControl(){
 		//manual shooter tilt control
 		if (rightStick.GetRawButton(3)) {
-			tiltMotorValue = 1;
-		} else if (rightStick.GetRawButton(2)) {
 			tiltMotorValue = -1;
+		} else if (rightStick.GetRawButton(2)) {
+			tiltMotorValue = 1;
 		} else {
 			tiltMotorValue = 0;
 		}
@@ -149,13 +207,15 @@ public:
 		if(rightStick.GetRawButton(3)||rightStick.GetRawButton(2)){
 			manualTiltControl();
 		}else if(rightStick.GetRawButton(4)){
-			tiltToPoint(0);
-		}
-		
-		if(tiltBottom.Get() && tiltMotorValue < 0){
+			//tiltToPoint(0);
+		}else{
 			tiltMotorValue = 0;
 		}
-		if(tiltTop.Get() && tiltMotorValue > 0){
+		
+		if(!tiltBottom.Get() && tiltMotorValue > 0){
+			tiltMotorValue = 0;
+		}
+		if(!tiltTop.Get() && tiltMotorValue < 0){
 			tiltMotorValue = 0;
 		}
 		
@@ -179,8 +239,8 @@ public:
 		
 		
 		if(leftStick.GetRawButton(3)){
-			frontShooterSpeed =.65;
-			backShooterSpeed = .45;
+			frontShooterSpeed =-.65;
+			backShooterSpeed = -.45;
 		}else{
 			frontShooterSpeed = (-1 * (rightStick.GetThrottle() * -1 + 1) / 2);
 			//sprintf(message, "front speed: %f", frontWheel.Get() * -1);
@@ -198,10 +258,7 @@ public:
 		backWheel.Set(backShooterSpeed);
 	}
 	
-	void printShooterSpeeds(DriverStationLCD* dsScreen){
-		dsScreen->PrintfLine(DriverStationLCD::kUser_Line1, "Front Wheel Speed: %f", frontShooterSpeed);
-		dsScreen->PrintfLine(DriverStationLCD::kUser_Line2, "Back  Wheel Speed: %f", backShooterSpeed);
-	}
+
 
 	//**************************************************************
 	//**********************End Shooter Code************************
