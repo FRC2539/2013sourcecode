@@ -18,9 +18,11 @@ class RobotDemo: public SimpleRobot {
 	DigitalInput tiltBottom;
 	DigitalInput tiltTop;
 	DigitalInput tiltEncoder;
+	DigitalInput tiltSlot;
 	DoubleSolenoid trigger;
 	Compressor compressor;
 	Task t_trackTicks;
+	Timer timer;
 	//RobotDrive myRobot; // robot drive system
 	
 private:
@@ -40,6 +42,7 @@ public:
 		tiltBottom(3),
 		tiltTop(2),
 		tiltEncoder(4),
+		tiltSlot(5),
 		trigger(1, 2),// as they are declared above.
 		compressor(1, 1),
 		t_trackTicks("trackTicks", (FUNCPTR)s_trackTicks)
@@ -71,6 +74,7 @@ public:
 		tickValue = 0;
 		tiltMotorValue = 0;
 		lastTrue = false;
+		
 		t_trackTicks.Start();
 		
 		//**************************************************************
@@ -82,7 +86,7 @@ public:
 			
 			
 			// drive with arcade style using the controller
-			arcadeDrive();
+			arcadeDrive(controller.GetRawAxis(4),controller.GetRawAxis(2));
 
 			//shooter code with printouts
 			setShooterSpeeds();
@@ -94,6 +98,14 @@ public:
 				trigger.Set(DoubleSolenoid::kForward);
 			} else {
 				trigger.Set(DoubleSolenoid::kReverse);
+			}
+			
+			if(controller.GetRawButton(5)){
+				rightDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Coast);
+				leftDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Coast);
+			}else{
+				rightDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
+				leftDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 			}
 			
 			screen->PrintfLine(DriverStationLCD::kUser_Line1, "Front Speed: %f", frontWheel.Get());
@@ -109,8 +121,6 @@ public:
 		//**************************************************************
 		
 		t_trackTicks.Stop();
-		rightDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Coast);
-		leftDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Coast);
 	}
 
 	
@@ -126,19 +136,19 @@ public:
 	//**********************Begin Drive Code************************
 	//**************************************************************
 	
-	void arcadeDrive(){
+	void arcadeDrive(float xAxis, float yAxis){
 		float rightPower;
 		float leftPower;
 		
 		
 		
-		rightPower = controller.GetRawAxis(4);
-		leftPower = controller.GetRawAxis(4);
+		rightPower = yAxis;
+		leftPower = yAxis;
 		
 		
 		
-		rightPower += controller.GetRawAxis(2);
-		leftPower -= controller.GetRawAxis(2);
+		rightPower += xAxis;
+		leftPower -= xAxis;
 		
 		
 		rightDrive.Set(-rightPower);
@@ -177,7 +187,7 @@ public:
 				lastTrue = false;
 			}
 			
-			Wait(.005);
+			Wait(.01);
 			
 		}
 	}
@@ -185,9 +195,19 @@ public:
 	void manualTiltControl(){
 		//manual shooter tilt control
 		if (rightStick.GetRawButton(3)) {
-			tiltMotorValue = -1;
+			if(leftStick.GetRawButton(4) && !tiltSlot.Get()){
+				tiltMotorValue = 0;
+			}else{
+				tiltMotorValue = 1;
+			}
 		} else if (rightStick.GetRawButton(2)) {
-			tiltMotorValue = 1;
+			
+			if(leftStick.GetRawButton(4) && !tiltSlot.Get()){
+				tiltMotorValue = 0;
+			}else{
+				tiltMotorValue = -1;
+			}
+			
 		} else {
 			tiltMotorValue = 0;
 		}
@@ -202,6 +222,8 @@ public:
 			tiltMotorValue = 0;
 		}
 	}
+	
+	
 	
 	void setTiltSpeed(){
 		if(rightStick.GetRawButton(3)||rightStick.GetRawButton(2)){
@@ -240,7 +262,7 @@ public:
 		
 		if(leftStick.GetRawButton(3)){
 			frontShooterSpeed =-.65;
-			backShooterSpeed = -.45;
+			backShooterSpeed = -.57;
 		}else{
 			frontShooterSpeed = (-1 * (rightStick.GetThrottle() * -1 + 1) / 2);
 			//sprintf(message, "front speed: %f", frontWheel.Get() * -1);
