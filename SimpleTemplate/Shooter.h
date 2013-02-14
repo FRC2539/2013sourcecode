@@ -15,9 +15,6 @@ public:
 	void setSpeed(double speed);
 	void fire();
 
-	double getFrontSpeed();
-	double getBackSpeed();
-
 protected:
 
 	static int s_launch(Shooter *shooter);

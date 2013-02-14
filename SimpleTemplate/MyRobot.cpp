@@ -1,7 +1,14 @@
 #include "WPILib.h"
 #include "Shooter.h"
 #include "ShooterTilt.h"
-#include <cmath>
+#include "CANDrive.h"
+#include "EasyController.h"
+#include "Targeting.h"
+#include "ControllerSetup.cpp"
+#include "TeleopMode.h"
+#include "AutomaticMode.h"
+#include "ManualMode.h"
+#include "LoadingMode.h"
 
 using namespace std;
 
@@ -21,28 +28,22 @@ public:
 		tilt(2),
 		rightDrive(6),
 		leftDrive(4),
-		trigger(1,2),// as they are declared above.
+		trigger(1,2),
 		compressor(1,1),
-		myRobot(leftDrive,rightDrive),	// these must be initialized in the same order
+		drive(leftDrive, rightDrive),
 		shooter(&frontWheel, &backWheel, &trigger),
-		shooterTilt(&tilt, 2, 3, 4)
-		
+		shooterTilt(&tilt, 2, 3, 4),
+		targeting(&shooter, &shooterTilt, &drive),
+		automaticTargetingMode(&targeting, &controller),
+		manualTargetingMode(&shooter, &shooterTilt, &rightStick),
+		loadingMode(&shooterTilt)
 	{
-		myRobot.SetExpiration(0.1);
-
-		rightDrive.ConfigEncoderCodesPerRev(360);
-		leftDrive.ConfigEncoderCodesPerRev(360);
-
-		rightDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
-		leftDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
-
-		rightDrive.ChangeControlMode(CANJaguar::kVoltage);
-		rightDrive.EnableControl();
-		leftDrive.ChangeControlMode(CANJaguar::kVoltage);
-		leftDrive.EnableControl();
+		drive.setNeutral(CANJaguar::kNeutralMode_Brake);
+		drive.setMode(CANJaguar::kSpeed);
 
 		tilt.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 
+		screen = DriverStationLCD::GetInstance();
 	}
 
 	/**
@@ -58,72 +59,33 @@ public:
 		}
 	}
 
-	/**
-	 * Runs the motors with arcade steering. 
-	 */
 	void OperatorControl(void)
 	{
 		setupRobot();
 
-		DriverStationLCD* screen = DriverStationLCD::GetInstance();
-		bool triggerPressed = false;
-		bool triggerWasPressed = rightStick.GetRawButton(1);
-
-		double oldShooterSpeed = getThrottleSpeed();
-		double shooterSpeed = 0;
+		currentMode = &automaticTargetingMode;
+		currentMode->begin(screen);
 		
 		while (IsOperatorControl() && IsEnabled())
 		{
-			if (rightStick.GetRawButton(3))
-			{
-				shooterTilt.changePosition(1);
-				tilt.ConfigNeutralMode(CANJaguar::kNeutralMode_Coast);
-			}
-			else if (rightStick.GetRawButton(2))
-			{
-				shooterTilt.changePosition(-1);
-				tilt.ConfigNeutralMode(CANJaguar::kNeutralMode_Coast);
-			}
-			else
-			{
-				tilt.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
-			}
-			screen->PrintfLine(DriverStationLCD::kUser_Line4, "Shooter Position: %i", shooterTilt.getPosition());
-
-			shooterSpeed = getThrottleSpeed();
-
-			if (abs(shooterSpeed - oldShooterSpeed) >= 0.01)
-			{
-				shooter.setSpeed(shooterSpeed);
-			}
-			screen->PrintfLine(
-				DriverStationLCD::kUser_Line1, 
-				"Front Wheel: %4.2d%%", 
-				shooter.getFrontSpeed()
-			);
-			screen->PrintfLine(
-				DriverStationLCD::kUser_Line2, 
-				"Back Wheel: %4.2d%%", 
-				shooter.getBackSpeed()
+			drive.arcade(
+				controller.getAxis(Controller::leftStickY),
+				controller.getAxis(Controller::rightStickX)
 			);
 
-			triggerPressed = rightStick.GetRawButton(1);
-			if (triggerPressed && ! triggerWasPressed)
+			if (controller.isClicked(Controller::A))
 			{
-				shooter.fire();
+				changeMode(&loadingMode);
 			}
-			triggerWasPressed = triggerPressed;
-			
-			// drive with arcade style using the controller
-			myRobot.ArcadeDrive(
-				controller.GetRawAxis(4),
-				controller.GetRawAxis(2)
-			); 
-			
-			//arcadeDrive(controller.GetRawAxis(4), controller.GetRawAxis(2));
-			
+			if (rightStick.isClicked(Joystick::rightFront))
+			{
+				changeMode(&manualTargetingMode);
+			}
+
+			currentMode->execute(screen);
 			screen->UpdateLCD();
-			Wait(0.005);				// wait for a motor update time
+			
+			Wait(0.005);
 		}
 	}
 	
@@ -135,9 +97,9 @@ public:
 	}
 
 protected:
-	Joystick rightStick;
-	Joystick leftStick;
-	Joystick controller;
+	EasyController rightStick;
+	EasyController leftStick;
+	EasyController controller;
 	CANJaguar frontWheel;
 	CANJaguar backWheel;
 	CANJaguar tilt;
@@ -145,14 +107,20 @@ protected:
 	CANJaguar leftDrive;
 	DoubleSolenoid trigger;
 	Compressor compressor;
-	RobotDrive myRobot;
+	CANDrive drive;
 	Shooter shooter;
 	ShooterTilt shooterTilt;
+	Targeting targeting;
+
+	AutomaticMode automaticTargetingMode;
+	ManualMode manualTargetingMode;
+	LoadingMode loadingMode;
+
+	TeleopMode *currentMode;
+	DriverStationLCD *screen;
 
 	void setupRobot()
 	{
-		myRobot.SetSafetyEnabled(false);
-
 		compressor.Start();
 
 		shooter.setSpeed(0);
@@ -162,24 +130,17 @@ protected:
 			shooterTilt.goHome();
 		}
 	}
-	
-	double getThrottleSpeed()
+
+	void changeMode(TeleopMode *m)
 	{
-		return (rightStick.GetThrottle() * -1 + 1) / 2;
-	}
-	
-	void arcadeDrive(float speed, float rotation){
-		float rightPower;
-		float leftPower;
-		
-		rightPower = speed;
-		leftPower = speed;
-		
-		rightPower += rotation;
-		leftPower -= rotation;
-		
-		rightDrive.Set(rightPower);
-		leftDrive.Set(leftPower);		
+		if (currentMode->name == m->name)
+		{
+			m = &automaticTargetingMode;
+		}
+
+		currentMode->end();
+		currentMode = m;
+		currentMode->begin(screen);
 	}
 };
 

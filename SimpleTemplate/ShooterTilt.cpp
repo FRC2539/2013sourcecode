@@ -1,8 +1,6 @@
 #include "ShooterTilt.h"
-#include "WPILib.h"
 #include <fstream>
 #include <iostream>
-#include <semLib.h>
 
 using namespace std;
 
@@ -91,7 +89,7 @@ void ShooterTilt::changeTilt()
 	bool wasPressed = isPressed(counterSwitch);
 	bool pressed = false;
 
-	while (currentPosition != targetPosition)
+	while (targetPosition == -1 || currentPosition != targetPosition)
 	{
 		Wait(0.05);
 

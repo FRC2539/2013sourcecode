@@ -1,5 +1,4 @@
 #include "Shooter.h"
-#include "WPILib.h"
 
 Shooter::Shooter(CANJaguar* f, CANJaguar* b, DoubleSolenoid* l):
 	t_launch("launch", (FUNCPTR)s_launch)
@@ -16,18 +15,8 @@ Shooter::~Shooter()
 
 void Shooter::setSpeed(double speed)
 {
-	frontWheel->Set(speed * -1);
-	backWheel->Set(speed * -0.92);
-}
-
-double Shooter::getFrontSpeed()
-{
-	return frontWheel->Get() * -100;
-}
-
-double Shooter::getBackSpeed()
-{
-	return backWheel->Get() * -100;
+	frontWheel->Set(speed * 1);
+	backWheel->Set(speed * 0.92);
 }
 
 void Shooter::fire()
