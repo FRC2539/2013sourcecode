@@ -57,7 +57,19 @@ Targeting::~Targeting()
 
 void Targeting::fire(Targeting::goal target)
 {
+	// get fresh image
+	// while not facing target
+		// find target
+		// calculate turn to face target
+		// perform turn
+		// get fresh image
+	// calculate shooter speed
+	// set shooter speed
 
+	// calculate shooter tilt
+	// set shooter tilt
+
+	// fire
 }
 
 unordered_map<Targeting::goal, Target*> Targeting::getVisibleTargets()
