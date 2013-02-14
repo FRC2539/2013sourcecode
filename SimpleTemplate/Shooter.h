@@ -9,7 +9,7 @@
 class Shooter {
 public:
 
-	Shooter(CANJaguar frontWheel, CANJaguar backWheel,  DoubleSolenoid launcher);
+	Shooter(CANJaguar* frontWheel, CANJaguar* backWheel, DoubleSolenoid* launcher);
 	~Shooter();
 
 	void setSpeed(double speed);
@@ -23,9 +23,9 @@ protected:
 	static int s_launch(Shooter *shooter);
 	void launch();
 
-	CANJaguar frontWheel;
-	CANJaguar backWheel;
-	DoubleSolenoid launcher;
+	CANJaguar *frontWheel;
+	CANJaguar *backWheel;
+	DoubleSolenoid *launcher;
 
 	Task t_launch;
 	SEM_ID launcherSem;

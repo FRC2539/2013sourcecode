@@ -11,7 +11,7 @@ using namespace std;
 class FrisbeeBot : public SimpleRobot
 {
 public:
-	RobotDemo(void):
+	FrisbeeBot(void):
 
 		rightStick(1),
 		leftStick(2),
@@ -23,12 +23,12 @@ public:
 		leftDrive(4),
 		trigger(1,2),// as they are declared above.
 		compressor(1,1),
-		myRobot(leftDrive,rightDrive)	// these must be initialized in the same order
+		myRobot(leftDrive,rightDrive),	// these must be initialized in the same order
+		shooter(&frontWheel, &backWheel, &trigger),
+		shooterTilt(&tilt, 2, 3, 4)
+		
 	{
 		myRobot.SetExpiration(0.1);
-
-		rightDrive.SetVoltageRampRate(24);
-		leftDrive.SetVoltageRampRate(24);
 
 		rightDrive.ConfigEncoderCodesPerRev(360);
 		leftDrive.ConfigEncoderCodesPerRev(360);
@@ -36,14 +36,13 @@ public:
 		rightDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 		leftDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 
-		rightDrive.ChangeControlMode(CANJaguar::kSpeed);
+		rightDrive.ChangeControlMode(CANJaguar::kVoltage);
 		rightDrive.EnableControl();
-		leftDrive.ChangeControlMode(CANJaguar::kSpeed);
+		leftDrive.ChangeControlMode(CANJaguar::kVoltage);
 		leftDrive.EnableControl();
 
 		tilt.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 
-		shooterTilt(tilt, 2, 3, 4);
 	}
 
 	/**
@@ -89,7 +88,7 @@ public:
 			{
 				tilt.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 			}
-			screen->PrintfLine(DriverStationLCD::kUser_Line4, 'Shooter Position: %i', shooterTilt.getPosition());
+			screen->PrintfLine(DriverStationLCD::kUser_Line4, "Shooter Position: %i", shooterTilt.getPosition());
 
 			shooterSpeed = getThrottleSpeed();
 
@@ -97,8 +96,16 @@ public:
 			{
 				shooter.setSpeed(shooterSpeed);
 			}
-			screen->PrintfLine(DriverStationLCD::kUser_Line1, 'Front Wheel: %4.2d%%', shooter.getFrontSpeed());
-			screen->PrintfLine(DriverStationLCD::kUser_Line2, 'Back Wheel: %4.2d%%', shooter.getBackSpeed());
+			screen->PrintfLine(
+				DriverStationLCD::kUser_Line1, 
+				"Front Wheel: %4.2d%%", 
+				shooter.getFrontSpeed()
+			);
+			screen->PrintfLine(
+				DriverStationLCD::kUser_Line2, 
+				"Back Wheel: %4.2d%%", 
+				shooter.getBackSpeed()
+			);
 
 			triggerPressed = rightStick.GetRawButton(1);
 			if (triggerPressed && ! triggerWasPressed)
@@ -108,7 +115,12 @@ public:
 			triggerWasPressed = triggerPressed;
 			
 			// drive with arcade style using the controller
-			myRobot.ArcadeDrive(controller.GetY(),controller.GetX()); 
+			myRobot.ArcadeDrive(
+				controller.GetRawAxis(4),
+				controller.GetRawAxis(2)
+			); 
+			
+			//arcadeDrive(controller.GetRawAxis(4), controller.GetRawAxis(2));
 			
 			screen->UpdateLCD();
 			Wait(0.005);				// wait for a motor update time
@@ -153,7 +165,21 @@ protected:
 	
 	double getThrottleSpeed()
 	{
-		return (rightStick.GetThrottle * -1 + 1) / 2;
+		return (rightStick.GetThrottle() * -1 + 1) / 2;
+	}
+	
+	void arcadeDrive(float speed, float rotation){
+		float rightPower;
+		float leftPower;
+		
+		rightPower = speed;
+		leftPower = speed;
+		
+		rightPower += rotation;
+		leftPower -= rotation;
+		
+		rightDrive.Set(rightPower);
+		leftDrive.Set(leftPower);		
 	}
 };
 

@@ -6,15 +6,17 @@
 
 using namespace std;
 
-ShooterTilt::ShooterTilt(CANJaguar m, int t, int b, int c)
+ShooterTilt::ShooterTilt(CANJaguar* m, int t, int b, int c):
+	t_changeTilt("changeTilt", (FUNCPTR)s_changeTilt),
+	topSwitch(t),
+	bottomSwitch(b),
+	counterSwitch(c)
 {
-	motor = m;
-
-	topSwitch(t);
-	bottomSwitch(b);
-	counterSwitch(c);
-
-	t_changeTilt('changeTilt', (FUNCPTR)s_changeTilt);
+	inMotion = false;
+	
+	saveFile = "tilt_position.txt";
+	
+	motor = m;	
 
 	ifstream settings(saveFile);
 	if (settings.is_open())
@@ -85,7 +87,7 @@ void ShooterTilt::changeTilt()
 	semTake(tiltMotorSem, NO_WAIT);
 	inMotion = true;
 
-	motor.Set(direction);
+	motor->Set(direction);
 	bool wasPressed = isPressed(counterSwitch);
 	bool pressed = false;
 
@@ -111,7 +113,7 @@ void ShooterTilt::changeTilt()
 			targetPosition = currentPosition;
 		}
 	}
-	motor.Set(0);
+	motor->Set(0);
 
 	inMotion = false;
 	semGive(tiltMotorSem);

@@ -9,7 +9,7 @@
 class ShooterTilt {
 public:
 
-	ShooterTilt(CANJaguar motor, int topSwitch, int bottomSwitch, int counterSwitch);
+	ShooterTilt(CANJaguar* motor, int topSwitch, int bottomSwitch, int counterSwitch);
 	~ShooterTilt();
 
 	void goToPosition(int position);
@@ -24,18 +24,20 @@ protected:
 	void changeTilt();
 	bool isPressed(DigitalInput& limitSwitch);
 
-	CANJaguar motor;
-	DigitalInput counterSwitch;
+	CANJaguar* motor;
+	Task t_changeTilt;
+	
 	DigitalInput topSwitch;
 	DigitalInput bottomSwitch;
-
+	DigitalInput counterSwitch;
+	
 	int currentPosition;
 	int targetPosition;
-	bool inMotion = false;
+	bool inMotion;
 
-	int saveFile = 'tilt_position.txt';
+	char *saveFile;
 
-	Task t_changeTilt;
+	
 	SEM_ID tiltMotorSem;
 };
 
