@@ -86,7 +86,7 @@ public:
 			
 			
 			// drive with arcade style using the controller
-			arcadeDrive(controller.GetRawAxis(4),controller.GetRawAxis(2));
+			arcadeDrive(controller.GetRawAxis(2),controller.GetRawAxis(4));
 
 			//shooter code with printouts
 			setShooterSpeeds();
@@ -140,20 +140,14 @@ public:
 		float rightPower;
 		float leftPower;
 		
-		
-		
 		rightPower = yAxis;
 		leftPower = yAxis;
 		
+		rightPower -= xAxis;
+		leftPower += xAxis;
 		
-		
-		rightPower += xAxis;
-		leftPower -= xAxis;
-		
-		
-		rightDrive.Set(-rightPower);
-		leftDrive.Set(-leftPower);
-		
+		rightDrive.Set(rightPower);
+		leftDrive.Set(leftPower);
 	}
 
 	//**************************************************************
@@ -264,11 +258,15 @@ public:
 			frontShooterSpeed =-.65;
 			backShooterSpeed = -.57;
 		}else{
-			frontShooterSpeed = (-1 * (rightStick.GetThrottle() * -1 + 1) / 2);
+			if((-1 * (rightStick.GetThrottle() * -1 + 1) / 2) < 0){
+				frontShooterSpeed = ((-1 * (rightStick.GetThrottle() * -1 + 1) / 2) - .08);
+			}else{
+				frontShooterSpeed = 0;
+			}
 			//sprintf(message, "front speed: %f", frontWheel.Get() * -1);
 			//screen->PrintfLine(DriverStationLCD::kUser_Line1, message);
 
-			backShooterSpeed = (-1 * (leftStick.GetThrottle() * -1 + 1) / 2);
+			backShooterSpeed = (-1 * (rightStick.GetThrottle() * -1 + 1) / 2);
 			//sprintf(message, "back speed: %f", backWheel.Get() * -1);
 			//screen->PrintfLine(DriverStationLCD::kUser_Line2, message);
 		}
@@ -290,3 +288,4 @@ public:
 
 START_ROBOT_CLASS(RobotDemo)
 ;
+

@@ -31,7 +31,7 @@ else
 MODE_DIR := NonDebug
 endif
 OBJ_DIR := .
-WS_ROOT_DIR := C:/Users/Evan/Documents/GitHub/2013sourcecode
+WS_ROOT_DIR := C:/Users/Evan/Documents/GitHub/2013sourcecodeclone
 PRJ_ROOT_DIR := $(WS_ROOT_DIR)/SimpleTemplate
 
 

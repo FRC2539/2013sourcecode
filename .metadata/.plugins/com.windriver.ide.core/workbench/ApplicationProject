@@ -283,7 +283,7 @@
             <booleanAttribute key="BLD::Info|Tool|Librarian|object" value="false"/>
             <booleanAttribute key="BLD::Info|Tool|Librarian|passAble" value="true"/>
             <stringAttribute key="BLD::Info|Tool|Librarian|sigs" value=""/>
-            <stringAttribute key="BLD::Info|cmd" value="%makeprefix% make --no-print-directory"/>
+            <stringAttribute key="BLD::Info|cmd" value="%makeprefix% make --no-print-directory JOBS=1"/>
             <stringAttribute key="BLD::Info|defaultSpec" value="Windows-gnu-native-3.x-4.x"/>
             <stringAttribute key="BLD::Info|redirDir|Linux-gnu-native-2.9x" value="Linux-gnu-native-2.9x"/>
             <stringAttribute key="BLD::Info|redirDir|Linux-gnu-native-3.x-4.x" value="Linux-gnu-native-3.x-4.x"/>
