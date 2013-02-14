@@ -3,6 +3,7 @@
 #include "Vision/HSLImage.h"
 #include "Vision/BinaryImage.h"
 #include <cmath>
+#include <vector>
 
 using namespace std;
 
@@ -117,6 +118,8 @@ void Targeting::watchCamera()
 		findTargets(camera->GetImage(), threshold, criteria);
 
 		semGive(freshImage);
+        
+        clearTargets();
 	}
 }
 
@@ -135,33 +138,20 @@ void Targeting::findTargets(HSLImage *image, Threshold& threshold, ParticleFilte
 
 	vector<ParticleAnalysisReport> *reports = filteredImage->GetOrderedParticleAnalysisReports();  //get a particle analysis report for each particle
 	scores = new Scores[reports->size()];
+    double distance;
 
 	//Iterate through each particle, scoring it and determining whether it is a target or not
 	for (unsigned i = 0; i < reports->size(); i++) {
 
 		ParticleAnalysisReport *report = &(reports->at(i));
-
-		scores[i].rectangularity = scoreRectangularity(report);
-		scores[i].aspectRatioOuter = scoreAspectRatio(filteredImage, report, true);
-		scores[i].aspectRatioInner = scoreAspectRatio(filteredImage, report, false);
-		scores[i].xEdge = scoreXEdge(thresholdImage, report);
-		scores[i].yEdge = scoreYEdge(thresholdImage, report);
-
-		if(scoreCompare(scores[i], false))
-		{
-			printf("particle: %d  is a High Goal  centerX: %f  centerY: %f \n", i, report->center_mass_x_normalized, report->center_mass_y_normalized);
-			printf("Distance: %f \n", computeDistance(thresholdImage, report, false));
-			screen->PrintfLine(DriverStationLCD::kUser_Line1,"** High Goal Found **");
-			position = report->center_mass_x_normalized;
-		} else if (scoreCompare(scores[i], true)) {
-			printf("particle: %d  is a Middle Goal  centerX: %f  centerY: %f \n", i, report->center_mass_x_normalized, report->center_mass_y_normalized);
-			printf("Distance: %f \n", computeDistance(thresholdImage, report, true));
-			screen->PrintfLine(DriverStationLCD::kUser_Line1,"* Middle Goal Found *");
-			position = report->center_mass_x_normalized;
-		} else {
-			printf("particle: %d  is not a goal  centerX: %f  centerY: %f \n", i, report->center_mass_x_normalized, report->center_mass_y_normalized);
-			screen->PrintfLine(DriverStationLCD::kUser_Line1,"!! Unknown Rectangle Found !!");
-		}
+        
+        Targeting::goal current = scoreParticle(filteredImage, thresholdImage, report);
+        
+        if (current != Targeting::none)
+        {
+            distance = computeDistance(thresholdImage, report, current);
+            visibleTargets.push_back(new Target(distance, current));
+        }
 	}
 
 	// be sure to delete images after using them
@@ -184,7 +174,7 @@ void Targeting::findTargets(HSLImage *image, Threshold& threshold, ParticleFilte
 	* @param outer True if the particle should be treated as an outer target, false to treat it as a center target
 	* @return The estimated distance to the target in Inches.
 	*/
-double Targeting::computeDistance (BinaryImage *image, ParticleAnalysisReport *report, bool outer) {
+double Targeting::computeDistance (BinaryImage* image, ParticleAnalysisReport* report, Targeting::goal goal) {
 	double rectShort, height;
 	int targetHeight;
 
@@ -192,7 +182,7 @@ double Targeting::computeDistance (BinaryImage *image, ParticleAnalysisReport *r
 	//using the smaller of the estimated rectangle short side and the bounding rectangle height results in better performance
 	//on skewed rectangles
 	height = min(report->boundingRect.height, rectShort);
-	targetHeight = outer ? 29 : 21;
+	targetHeight = goals[goal].height;
 
 	return X_IMAGE_RES * targetHeight / (height * 12 * 2 * tan(VIEW_ANGLE*PI/(180*2)));
 }
@@ -205,48 +195,26 @@ double Targeting::computeDistance (BinaryImage *image, ParticleAnalysisReport *r
 	*
 	* @param image The image containing the particle to score, needed to perform additional measurements
 	* @param report The Particle Analysis Report for the particle, used for the width, height, and particle number
-	* @param outer Indicates whether the particle aspect ratio should be compared to the ratio for the inner target or the outer
 	* @return The aspect ratio score (0-100)
 	*/
-double Targeting::scoreAspectRatio(BinaryImage *image, ParticleAnalysisReport *report, bool outer){
-	double rectLong, rectShort, idealAspectRatio, aspectRatio;
-	idealAspectRatio = outer ? (62/29) : (62/20);   //Dimensions of goal opening + 4 inches on all 4 sides for reflective tape
+Targeting::goal Targeting::scoreAspectRatio(BinaryImage *image, ParticleAnalysisReport *report){
+	double rectLong, rectShort, score;
 
 	imaqMeasureParticle(image->GetImaqImage(), report->particleIndex, 0, IMAQ_MT_EQUIVALENT_RECT_LONG_SIDE, &rectLong);
 	imaqMeasureParticle(image->GetImaqImage(), report->particleIndex, 0, IMAQ_MT_EQUIVALENT_RECT_SHORT_SIDE, &rectShort);
 
-	//Divide width by height to measure aspect ratio
-	if(report->boundingRect.width > report->boundingRect.height){
-		//particle is wider than it is tall, divide long by short
-		aspectRatio = 100*(1-fabs((1-((rectLong/rectShort)/idealAspectRatio))));
-	} else {
-		//particle is taller than it is wide, divide short by long
-		aspectRatio = 100*(1-fabs((1-((rectShort/rectLong)/idealAspectRatio))));
-	}
-	return (max(0, min(aspectRatio, 100)));	 //force to be in range 0-100
-}
-
-/**
-	* Compares scores to defined limits and returns true if the particle appears to be a target
-	*
-	* @param scores The structure containing the scores to compare
-	* @param outer True if the particle should be treated as an outer target, false to treat it as a center target
-	*
-	* @return True if the particle meets all limits, false otherwise
-	*/
-bool Targeting::scoreCompare(Scores scores, bool outer){
-	bool isTarget = true;
-
-	isTarget &= scores.rectangularity > RECTANGULARITY_LIMIT;
-	if(outer){
-		isTarget &= scores.aspectRatioOuter > ASPECT_RATIO_LIMIT;
-	} else {
-		isTarget &= scores.aspectRatioInner > ASPECT_RATIO_LIMIT;
-	}
-	isTarget &= scores.xEdge > X_EDGE_LIMIT;
-	isTarget &= scores.yEdge > Y_EDGE_LIMIT;
-
-	return isTarget;
+    
+    for (auto i = goals.begin(); i != goals.end(); i++)
+    {
+        score = 100 * (1-fabs((1-((rectLong/rectShort)/i->second.aspectRatio))));
+        
+        if (score > ASPECT_RATIO_LIMIT)
+        {
+            return i->first;
+        }
+    }
+    
+    return Targeting::none;
 }
 
 /**
@@ -311,3 +279,28 @@ double Targeting::scoreYEdge(BinaryImage *image, ParticleAnalysisReport *report)
 	imaqDispose(averages);					  //let IMAQ dispose of the averages struct
 	return total;
 }
+
+Targeting::goal Targeting::scoreParticle(BinaryImage* filled, BinaryImage* original, ParticleAnalysisReport* report)
+{
+    double rectangularity = scoreRectangularity(report);
+    
+    if (rectangularity < RECTANGULARITY_LIMIT)
+    {
+        return Targeting::none;
+    }
+    
+    double xEdge = scoreXEdge(original, report);
+    if (xEdge < X_EDGE_LIMIT)
+    {
+        return Targeting::none;
+    }
+    
+    double yEdge = scoreYEdge(original, report);
+    if (yEdge < X_EDGE_LIMIT)
+    {
+        return Targeting::none;
+    }
+    
+    return scoreAspectRatio(filled, report);
+}
+

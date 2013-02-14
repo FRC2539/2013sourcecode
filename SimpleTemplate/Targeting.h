@@ -35,7 +35,7 @@ public:
 
 	unordered_map<Targeting::goal, Target*> getVisibleTargets();
 
-	typedef enum {topGoal, middleGoal, lowGoal, towerGoal} goal;
+	typedef enum {topGoal, middleGoal, lowGoal, towerGoal, none} goal;
 
 protected:
 
@@ -72,8 +72,7 @@ protected:
 	//Structure to represent the scores for the various tests used for target identification
 	struct Scores {
 		double rectangularity;
-		double aspectRatioInner;
-		double aspectRatioOuter;
+        Targeting::goal goal;
 		double xEdge;
 		double yEdge;
 
@@ -81,8 +80,9 @@ protected:
 
 	Scores *scores;
 
-	double computeDistance (BinaryImage *image, ParticleAnalysisReport *report, bool outer);
-	double scoreAspectRatio(BinaryImage *image, ParticleAnalysisReport *report, bool outer);
+    Targeting::goal scoreParticle(BinaryImage* filtered, BinaryImage* threshold, ParticleAnalysisReport* report);
+	double computeDistance (BinaryImage *image, ParticleAnalysisReport *report, Targeting::goal goal);
+	Targeting::goal scoreAspectRatio(BinaryImage *image, ParticleAnalysisReport *report);
 	bool scoreCompare(Scores scores, bool outer);
 	double scoreRectangularity(ParticleAnalysisReport *report);
 	double scoreXEdge(BinaryImage *image, ParticleAnalysisReport *report);
