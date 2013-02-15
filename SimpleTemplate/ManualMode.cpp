@@ -20,11 +20,11 @@ ManualMode::~ManualMode()
 
 void ManualMode::execute(DriverStationLCD *screen)
 {
-	if (joystick->isClicked(Joystick::up))
+	if (joystick->isClicked(Sidewinder::up))
 	{
 		shooterTilt.changePosition(1);
 	}
-	else if (joystick->isClicked(Joystick::down))
+	else if (joystick->isClicked(Sidewinder::down))
 	{
 		shooterTilt.changePosition(-1);
 	}
@@ -48,7 +48,7 @@ void ManualMode::execute(DriverStationLCD *screen)
 		);
 	}
 
-	if (joystick->isClicked(Joystick::trigger))
+	if (joystick->isClicked(Sidewinder::trigger))
 	{
 		shooter.fire();
 	}
@@ -57,5 +57,5 @@ void ManualMode::execute(DriverStationLCD *screen)
 
 float ManualMode::getThrottleSpeed()
 {
-	return (joystick->getAxis(Joystick::throttle) + 1) / 2;
+	return (joystick->getAxis(Sidewinder::throttle) + 1) / 2;
 }

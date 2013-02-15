@@ -13,11 +13,11 @@ using namespace std;
 
 struct Target {
 	double distance;
-	Targeting::goal goal;
+	int goal;
     float x;
     float y;
 
-	Target(double d, Targeting::goal g, float xPosition, float yPosition)
+	Target(double d, int g, float xPosition, float yPosition)
 	{
 		distance = d;
 		goal = g;
@@ -40,12 +40,12 @@ public:
 	void enable();
 	void disable();
 
-	void fire(goal target);
+	typedef enum {topGoal, middleGoal, lowGoal, towerGoal, none} goal;
+
+	void fire(Targetting::goal target);
 
 	unordered_map<Targeting::goal, Target*> getVisibleTargets();
     Goal getGoal(Targeting::goal goal);
-
-	typedef enum {topGoal, middleGoal, lowGoal, towerGoal, none} goal;
 
     struct Goal {
         char* name;

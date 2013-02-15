@@ -69,15 +69,15 @@ public:
 		while (IsOperatorControl() && IsEnabled())
 		{
 			drive.arcade(
-				controller.getAxis(Controller::leftStickY),
-				controller.getAxis(Controller::rightStickX)
+				controller.getAxis(GamePad::leftStickY),
+				controller.getAxis(GamePad::rightStickX)
 			);
 
-			if (controller.isClicked(Controller::A))
+			if (controller.isClicked(GamePad::A))
 			{
 				changeMode(&loadingMode);
 			}
-			if (rightStick.isClicked(Joystick::rightFront))
+			if (rightStick.isClicked(Sidewinder::rightFront))
 			{
 				changeMode(&manualTargetingMode);
 			}

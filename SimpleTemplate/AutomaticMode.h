@@ -11,6 +11,10 @@ public:
 	AutomaticMode(Targeting* targeting, EasyController* controller);
 	~AutomaticMode();
 
+	void begin(DriverStationLCD *screen);
+	void execute(DriverStationLCD *screen);
+	void end();
+	
 protected:
 
 	Targeting *targeting;

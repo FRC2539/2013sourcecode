@@ -8,7 +8,7 @@ class TeleopMode {
 public:
 
 	TeleopMode();
-	~TeleopMode();
+	virtual ~TeleopMode();
 
 	virtual void begin(DriverStationLCD* screen);
 	virtual void execute(DriverStationLCD* screen);

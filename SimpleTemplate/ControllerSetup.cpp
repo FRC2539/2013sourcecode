@@ -1,7 +1,7 @@
 #ifndef CONTROLLER_SETUP
 #define CONTROLLER_SETUP
 
-namespace Controller {
+namespace GamePad {
 	enum axis {
 		leftStickX,
 		leftStickY,
@@ -28,7 +28,7 @@ namespace Controller {
 	};
 };
 
-namespace Joystick {
+namespace Sidewinder {
 	enum axis {
 		X = 1,
 		Y = 2,

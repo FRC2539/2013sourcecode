@@ -56,12 +56,12 @@ void AutomaticMode::execute(DriverStationLCD *screen)
         leftBumper = i->first;
     }
     
-    if (controller->isClicked(Controller::rightBumper))
+    if (controller->isClicked(GamePad::rightBumper))
     {
         targeting->fire(rightBumper);
     }
     
-    if (controller->isClicked(Controller::leftBumper))
+    if (controller->isClicked(GamePad::leftBumper))
     {
         targeting->fire(leftBumper);
     }

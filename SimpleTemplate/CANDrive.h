@@ -20,8 +20,8 @@ protected:
 	CANJaguar *leftMotor;
 	CANJaguar *rightMotor;
 
-	static float rotationsPerDegree = 0.07;
-	static float maxRPMs = 100;
+	const static float rotationsPerDegree = 0.07;
+	const static float maxRPMs = 100;
 
 	float multiplier;
 };
