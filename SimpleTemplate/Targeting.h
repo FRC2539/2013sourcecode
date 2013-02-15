@@ -14,12 +14,21 @@ using namespace std;
 struct Target {
 	double distance;
 	Targeting::goal goal;
+    float x;
+    float y;
 
-	Target(double d, Targeting::goal g)
+	Target(double d, Targeting::goal g, float xPosition, float yPosition)
 	{
 		distance = d;
 		goal = g;
+        x = xPosition;
+        y = yPosition;
 	}
+};
+
+struct ShooterSettings {
+    double speed;
+    int position;
 };
 
 class Targeting {
@@ -34,8 +43,26 @@ public:
 	void fire(goal target);
 
 	unordered_map<Targeting::goal, Target*> getVisibleTargets();
+    Goal getGoal(Targeting::goal goal);
 
 	typedef enum {topGoal, middleGoal, lowGoal, towerGoal, none} goal;
+
+    struct Goal {
+        char* name;
+        int height;
+        int width;
+        float aspectRatio;
+
+        Goal(char* n, int w, int h)
+        {
+            name = n;
+            
+            width = w;
+            height = h;
+
+            aspectRatio = static_cast<float>(width) / height;
+        }
+    };
 
 protected:
 
@@ -44,6 +71,10 @@ protected:
 
 	void findTargets(HSLImage* image);
 	void clearTargets();
+    
+    void getFreshTargets();
+    ShooterSettings calculateShooterSettings(double distance);
+    void calculateRotation(double distance, float x);
 
 	Shooter *shooter;
 	ShooterTilt *tilt;
@@ -53,37 +84,11 @@ protected:
 	Task t_watchCamera;
 
 	unordered_map<Targeting::goal, Target*> visibleTargets;
-
-	struct Goal {
-		int height;
-		int width;
-		float aspectRatio;
-
-		Goal(int w, int h)
-		{
-			width = w;
-			height = h;
-
-			aspectRatio = static_cast<float>(width) / height;
-		}
-	};
 	unordered_map<Targeting::goal, Goal> goals;
-
-	//Structure to represent the scores for the various tests used for target identification
-	struct Scores {
-		double rectangularity;
-        Targeting::goal goal;
-		double xEdge;
-		double yEdge;
-
-	};
-
-	Scores *scores;
 
     Targeting::goal scoreParticle(BinaryImage* filtered, BinaryImage* threshold, ParticleAnalysisReport* report);
 	double computeDistance (BinaryImage *image, ParticleAnalysisReport *report, Targeting::goal goal);
 	Targeting::goal scoreAspectRatio(BinaryImage *image, ParticleAnalysisReport *report);
-	bool scoreCompare(Scores scores, bool outer);
 	double scoreRectangularity(ParticleAnalysisReport *report);
 	double scoreXEdge(BinaryImage *image, ParticleAnalysisReport *report);
 	double scoreYEdge(BinaryImage *image, ParticleAnalysisReport *report);

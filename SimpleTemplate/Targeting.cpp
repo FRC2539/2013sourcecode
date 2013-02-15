@@ -42,11 +42,11 @@ Targeting::Targeting(Shooter* s, ShooterTilt* t, CANDrive* d, const char* camera
 	tilt = t;
 	drive = d;
 
-	goals[Targeting::topGoal] = Goal(62, 20);
-	goals[Targeting::middleGoal] = Goal(62, 29);
-	goals[Targeting::lowGoal] = Goal(37, 32);
+	goals[Targeting::topGoal] = Goal("High Goal", 62, 20);
+	goals[Targeting::middleGoal] = Goal("Middle Goal", 62, 29);
+	goals[Targeting::lowGoal] = Goal("Low Goal", 37, 32);
 
-	camera = AxisCamera::GetInstance(cameraIP);
+	camera = &AxisCamera::GetInstance(cameraIP);
 	camera->WriteResolution(AxisCamera::kResolution_640x480);
 	camera->WriteBrightness(0);
 }
@@ -58,25 +58,53 @@ Targeting::~Targeting()
 
 void Targeting::fire(Targeting::goal target)
 {
-	// get fresh image
-	// while not facing target
-		// find target
-		// calculate turn to face target
-		// perform turn
-		// get fresh image
-	// calculate shooter speed
-	// set shooter speed
-
-	// calculate shooter tilt
-	// set shooter tilt
-
-	// fire
+    disable();
+    
+    unordered_map<Targeting::goal, Target>::const_iterator goalIterator;
+    Target goal;
+    
+    getFreshTargets();
+    while (true)
+    {
+        goalIterator = visibleTargets.find(target);
+        if (goalIterator == visibleTargets.end())
+        {
+            return;
+        }
+        
+        Target goal = goalIterator->second;
+        
+        if (abs(goal.x) < .05)
+        {
+            break;
+        }
+        
+        float rotation = calculateRotation(goal.distance, goal.x);
+        drive->rotate(rotation);
+        
+        getFreshTargets();
+    }
+    
+    ShooterSettings settings = calculateShooterSettings(goal.distance);
+    
+    shooter->setSpeed(settings.speed);
+    tilt->goToPosition(settings.position);
+    
+    shooter->fire();
+    
+    enable();
 }
 
 unordered_map<Targeting::goal, Target*> Targeting::getVisibleTargets()
 {
 	return visibleTargets;
 }
+
+Targeting::Goal Targeting::getGoal(Targeting::goal goal)
+{
+    return goals[goal];
+}
+
 
 void Targeting::enable()
 {
@@ -108,18 +136,39 @@ void Targeting::watchCamera()
 	ParticleFilterCriteria2 criteria[] = {
 			{IMAQ_MT_AREA, AREA_MINIMUM, 65535, false, false}
 	};
+    
+    float center;
 
 	SEM_ID freshImage;
 	while (true)
 	{
 		freshImage = camera->GetNewImageSem();
 		semTake(freshImage, WAIT_FOREVER);
-
-		findTargets(camera->GetImage(), threshold, criteria);
-
-		semGive(freshImage);
         
         clearTargets();
+		findTargets(camera->GetImage(), threshold, criteria);
+        
+        if (visibleTargets.size() > 0)
+        {            
+            center = 0;
+            for (auto i = visibleTargets.begin(); i != visibleTargets.end(); i++)
+            {
+                center += i->second.y;
+            }
+            
+            center /= visibleTargets.size();
+            
+            if (center > 0.1)
+            {
+                tilt->changePosition(1);
+            }
+            else if (center < 0.1)
+            {
+                tilt->changePosition(-1);
+            }
+        }
+
+		semGive(freshImage);
 	}
 }
 
@@ -137,7 +186,6 @@ void Targeting::findTargets(HSLImage *image, Threshold& threshold, ParticleFilte
 	BinaryImage *filteredImage = convexHullImage;
 
 	vector<ParticleAnalysisReport> *reports = filteredImage->GetOrderedParticleAnalysisReports();  //get a particle analysis report for each particle
-	scores = new Scores[reports->size()];
     double distance;
 
 	//Iterate through each particle, scoring it and determining whether it is a target or not
@@ -150,7 +198,12 @@ void Targeting::findTargets(HSLImage *image, Threshold& threshold, ParticleFilte
         if (current != Targeting::none)
         {
             distance = computeDistance(thresholdImage, report, current);
-            visibleTargets.push_back(new Target(distance, current));
+            visibleTargets.push_back(new Target(
+                distance, 
+                current, 
+                report->center_mass_x_normalized,
+                report->center_mass_y_normalized
+            ));
         }
 	}
 
@@ -160,8 +213,7 @@ void Targeting::findTargets(HSLImage *image, Threshold& threshold, ParticleFilte
 	delete thresholdImage;
 	delete image;
 
-	//delete allocated reports and Scores objects also
-	delete scores;
+	//delete allocated reports also
 	delete reports;
 }
 
@@ -302,5 +354,34 @@ Targeting::goal Targeting::scoreParticle(BinaryImage* filled, BinaryImage* origi
     }
     
     return scoreAspectRatio(filled, report);
+}
+
+void Targeting::getFreshTargets()
+{
+    while ( ! camera->IsFreshImage())
+    {
+        Wait(0.05);
+    }
+    
+    Threshold threshold(100, 180, 200, 255, 200, 255); //HSV threshold criteria, ranges are in that order
+    ParticleFilterCriteria2 criteria[] = {
+            {IMAQ_MT_AREA, AREA_MINIMUM, 65535, false, false}
+    };
+        
+    clearTargets();
+    findTargets(camera->GetImage(), threshold, criteria);    
+}
+
+ShooterSettings Targeting::calculateShooterSettings(double distance)
+{
+    ShooterSettings settings;
+    
+    settings.speed = .65;
+    settings.position = 20;
+}
+
+void Targeting::calculateRotation(double distance, float x)
+{
+    return x * 20;
 }
 
