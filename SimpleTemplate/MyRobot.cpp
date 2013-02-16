@@ -117,10 +117,69 @@ public:
 	}
 
 	/**
-	 * Drive left & right motors for 2 seconds then stop
+	 * autonomous code
 	 */
 	void Autonomous(void) {
+		
+		DriverStation *station = DriverStation::GetInstance();
+		DriverStationLCD *screen = DriverStationLCD::GetInstance();
+		clearLCD(screen);
+		Wait(.1);
+		
 		compressor.Start();
+		
+		
+		if(station->GetDigitalIn(1)){
+			frontWheel.Set(-.64);
+			backWheel.Set(-.56);
+		
+			Wait(.05);
+		
+			screen->PrintfLine(DriverStationLCD::kUser_Line1, "front:%d",frontWheel.Get());
+			screen->PrintfLine(DriverStationLCD::kUser_Line2, "back :%d",backWheel.Get());
+			screen->UpdateLCD();
+		
+			tickValue = 0;
+			
+			while(tickValue < 6){
+				trackTicks();
+				tiltToPoint(6);
+			}
+		
+			Wait(.3);
+			
+			//loop for shooting 3 frisbees
+			for(int i = 0; i < 3; i++){
+				Wait(.9);
+				
+				trigger.Set(DoubleSolenoid::kForward);
+		
+				Wait(.9);
+		
+				trigger.Set(DoubleSolenoid::kReverse);
+			}
+			
+			Wait(1);
+			
+			frontWheel.Set(0);
+			backWheel.Set(0);
+			
+			//
+			if(station->GetDigitalIn(2)){
+				arcadeDrive(0,.6);
+				Wait(.4);
+				
+				arcadeDrive(0,0);
+				
+			}
+			if(station->GetDigitalIn(3)){
+				arcadeDrive(0,-.6);
+				Wait(.4);
+				
+				arcadeDrive(0,0);
+			}
+		}
+		
 	}
 
 	/**
@@ -131,13 +190,13 @@ public:
 		DriverStationLCD* screen = DriverStationLCD::GetInstance();
 		rightDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 		leftDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
-		frontWheel.Set(0);
-		backWheel.Set(0);
+		//frontWheel.Set(0);
+		//backWheel.Set(0);
 		compressor.Start();
 		tickValue = 0;
 		tiltMotorValue = 0;
 		lastTrue = false;
-		t_trackTicks.Start();
+		//t_trackTicks.Start();
 
 		GoalPosition highestGoal;
 		
@@ -147,6 +206,8 @@ public:
 
 		while (IsOperatorControl()) {
 
+			trackTicks();
+			clearLCD(screen);
 			// drive with arcade style using the controller
 			arcadeDrive(controller.GetRawAxis(2), controller.GetRawAxis(4));
 
@@ -174,17 +235,22 @@ public:
 			if(leftStick.GetRawButton(2)){
 				highestGoal = analyzeImage(screen);
 			}
+			if(leftStick.GetRawButton(1)){
+				tiltToPoint(2);
+			}
 			
 			screen->PrintfLine(DriverStationLCD::kUser_Line1,
 					"Front Speed: %f", frontWheel.Get());
 			screen->PrintfLine(DriverStationLCD::kUser_Line2, "Back Speed: %f",
 					backWheel.Get());
-			screen->PrintfLine(DriverStationLCD::kUser_Line3, "# ticks :%i",
-					tickValue);
+			screen->PrintfLine(DriverStationLCD::kUser_Line3, "# ticks :%s",
+					tiltEncoder.Get() ? "On":"Off");
 			screen->PrintfLine(DriverStationLCD::kUser_Line4, "distance %d",
 					highestGoal.distance);
 			screen->PrintfLine(DriverStationLCD::kUser_Line5, "xValue %d",
 					highestGoal.x);
+			screen->PrintfLine(DriverStationLCD::kUser_Line6, "#ticks :%i",\
+					tickValue);
 
 			screen->UpdateLCD();
 			Wait(0.005); // wait for a motor update time
@@ -237,7 +303,6 @@ public:
 	}
 
 	void trackTicks() {
-		while (true) {
 			if (!tiltEncoder.Get() && !lastTrue) {
 				if (tilt.Get() > 0) {
 					tickValue++;
@@ -247,13 +312,15 @@ public:
 				lastTrue = true;
 			}
 
-			if (!tiltEncoder.Get()) {
+			if (tiltEncoder.Get()) {
 				lastTrue = false;
+			}
+			
+			if(!tiltTop.Get()){
+				tickValue = 0;
 			}
 
 			Wait(.01);
-
-		}
 	}
 
 	void manualTiltControl() {
@@ -279,11 +346,11 @@ public:
 
 	void tiltToPoint(int point) {
 		if (tickValue > point) {
-			tiltMotorValue = 1;
+			tilt.Set(-1);
 		} else if (tickValue < point) {
-			tiltMotorValue = -1;
+			tilt.Set(1);
 		} else {
-			tiltMotorValue = 0;
+			tilt.Set(0);
 		}
 	}
 
@@ -322,11 +389,11 @@ public:
 	void determineShooterSpeeds() {
 
 		if (leftStick.GetRawButton(3)) {
-			frontShooterSpeed = -.65;
-			backShooterSpeed = -.57;
+			frontShooterSpeed = -.68;
+			backShooterSpeed = -.6;
 		} else {
-			if ((-1 * (rightStick.GetThrottle() * -1 + 1) / 2) < 0) {
-				frontShooterSpeed = ((-1 * (rightStick.GetThrottle() * -1 + 1)
+			if ((-1 * (leftStick.GetThrottle() * -1 + 1) / 2) < 0) {
+				frontShooterSpeed = ((-1 * (leftStick.GetThrottle() * -1 + 1)
 						/ 2) - .08);
 			} else {
 				frontShooterSpeed = 0;
@@ -334,7 +401,7 @@ public:
 			//sprintf(message, "front speed: %f", frontWheel.Get() * -1);
 			//screen->PrintfLine(DriverStationLCD::kUser_Line1, message);
 
-			backShooterSpeed = (-1 * (rightStick.GetThrottle() * -1 + 1) / 2);
+			backShooterSpeed = (-1 * (leftStick.GetThrottle() * -1 + 1) / 2);
 			//sprintf(message, "back speed: %f", backWheel.Get() * -1);
 			//screen->PrintfLine(DriverStationLCD::kUser_Line2, message);
 		}
@@ -357,8 +424,11 @@ public:
 
 
 	GoalPosition analyzeImage(DriverStationLCD* screen) {
-		
 
+		timer.Reset();
+		timer.Start();
+		
+		clearLCD(screen);
 		AxisCamera &camera = AxisCamera::GetInstance("10.25.39.11");  //To use the Axis camera uncomment this line
 		
 		Scores* scores;
@@ -370,21 +440,29 @@ public:
 
 		if ((image == (void *) 0) || image->GetWidth() == 0
 				|| image->GetHeight() == 0) {
-			screen->PrintfLine(DriverStationLCD::kUser_Line5,
+			screen->PrintfLine(DriverStationLCD::kUser_Line1,
 					"image is not valid");
 			screen->UpdateLCD();
 			
 			return position;
 		}
 
-		BinaryImage *thresholdImage = image->ThresholdHSV(threshold);
+		BinaryImage *thresholdImage;
+		
+		try{
+			thresholdImage = image->ThresholdHSV(threshold);
+		}catch(int e){
+			return position;
+		}
 		// filter out all but the green pixels
-		screen->PrintfLine(DriverStationLCD::kUser_Line6,
-							"threshold");
+		screen->PrintfLine(DriverStationLCD::kUser_Line1,
+				"threshold");
 		screen->UpdateLCD();
 
 		BinaryImage *convexHullImage = thresholdImage->ConvexHull(false);
 		//fill in all rectangles and partial rectangles
+		screen->PrintfLine(DriverStationLCD::kUser_Line2,
+				"convex hull");
 
 		// This code always results in a blank image. Find out why...
 		//BinaryImage *filteredImage = convexHullImage->ParticleFilter(criteria, 1);	//Remove small particles
@@ -417,8 +495,10 @@ public:
 				position.goal = top;
 				//printf("particle: %d  is a High Goal  centerX: %f  centerY: %f \n", i, report->center_mass_x_normalized, report->center_mass_y_normalized);
 				//printf("Distance: %f \n", computeDistance(thresholdImage, report, false));
-				screen->PrintfLine(DriverStationLCD::kUser_Line1,
+				screen->PrintfLine(DriverStationLCD::kUser_Line3,
 						"** High Goal Found **");
+				screen->PrintfLine(DriverStationLCD::kUser_Line6,
+						"Time to process: %f", timer.Get());
 				screen->UpdateLCD();
 				return position;
 
@@ -430,8 +510,10 @@ public:
 				position.goal = middle;
 				//printf("particle: %d  is a Middle Goal  centerX: %f  centerY: %f \n", i, report->center_mass_x_normalized, report->center_mass_y_normalized);
 				//printf("Distance: %f \n", computeDistance(thresholdImage, report, true));
-				screen->PrintfLine(DriverStationLCD::kUser_Line1,
+				screen->PrintfLine(DriverStationLCD::kUser_Line4,
 						"* Middle Goal Found *");
+				screen->PrintfLine(DriverStationLCD::kUser_Line6,
+						"Time to process: %f", timer.Get());
 				screen->UpdateLCD();
 				return position;
 
@@ -442,12 +524,17 @@ public:
 						false);
 				position.goal = unknown;
 				//printf("particle: %d  is not a goal  centerX: %f  centerY: %f \n", i, report->center_mass_x_normalized, report->center_mass_y_normalized);
-				screen->PrintfLine(DriverStationLCD::kUser_Line1,
+				screen->PrintfLine(DriverStationLCD::kUser_Line5,
 						"!! Unknown Rectangle Found !!");
+				screen->PrintfLine(DriverStationLCD::kUser_Line6,
+						"Time to process: %f", timer.Get());
 				screen->UpdateLCD();
 				return position;
 			}
 		}
+		screen->PrintfLine(DriverStationLCD::kUser_Line6,"no targets");
+		screen->UpdateLCD();
+		return position;
 	}
 	
 	//*********************supporting image functions*********************
@@ -535,6 +622,16 @@ public:
 	}
 
 	//********************end supporting vision code*****************************
+	
+	void clearLCD(DriverStationLCD* screen){
+		screen->PrintfLine(DriverStationLCD::kUser_Line1, "");
+		screen->PrintfLine(DriverStationLCD::kUser_Line2, "");
+		screen->PrintfLine(DriverStationLCD::kUser_Line3, "");
+		screen->PrintfLine(DriverStationLCD::kUser_Line4, "");
+		screen->PrintfLine(DriverStationLCD::kUser_Line5, "");
+		screen->PrintfLine(DriverStationLCD::kUser_Line6, "");
+	}
+	
 };
 
 START_ROBOT_CLASS(RobotDemo)
