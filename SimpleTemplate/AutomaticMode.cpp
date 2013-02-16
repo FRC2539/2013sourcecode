@@ -1,5 +1,5 @@
 #include "AutomaticMode.h"
-#include <ios>
+#include <vector>
 
 AutomaticMode::AutomaticMode(Targeting* t, EasyController* c)
 {
@@ -23,37 +23,38 @@ void AutomaticMode::begin(DriverStationLCD *screen)
 
 void AutomaticMode::execute(DriverStationLCD *screen)
 {
-	unordered_map<Targeting::goal, Target*> targets = targeting->getVisibleTargets();
+	vector<VisibleTarget*> targets = targeting->getVisibleTargets();
 	
 	screen->PrintfLine(DriverStationLCD::kUser_Line2, "");
 	screen->PrintfLine(DriverStationLCD::kUser_Line3, "");
 	
-	Targeting::goal rightBumper = Targeting::none;
-	Targeting::goal leftBumper = Targeting::none;
+	GoalType::id rightBumper = GoalType::none;
+	GoalType::id leftBumper = GoalType::none;
 	
 	auto i = targets.begin();
 	if (i != targets.end())
-	{   
+	{		   
+		rightBumper = i->second->goal;
+		
 		screen->PrintfLine(
 			DriverStationLCD::kUser_Line2,
 			"%s: Right Bumper",
-			targeting->getGoal(i->first).name
+			targeting->getGoal(rightBumper).name
 		);
-		
-		rightBumper = i->first;
 		
 		i++;
 	}
 	
 	if (i != targets.end())
 	{
+		leftBumper = i->second->goal;
+		
 		screen->PrintfLine(
 			DriverStationLCD::kUser_Line2,
 			"%s: Left Bumper",
-			i->second.name
+			targeting->getGoal(leftBumper).name
 		);
 		
-		leftBumper = i->first;
 	}
 	
 	if (controller->isClicked(GamePad::rightBumper))

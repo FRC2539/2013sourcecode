@@ -11,19 +11,46 @@
 
 using namespace std;
 
-struct Target {
+namespace GoalType {
+	enum id {
+		top,
+		middle,
+		low,
+		tower,
+		none
+	};
+};
+
+struct VisibleTarget {
 	double distance;
-	int goal;
+	GoalType::id goal;
 	float x;
 	float y;
 
-	Target(double d, int g, float xPosition, float yPosition)
+	VisibleTarget(double d, GoalType::id g, float xPosition, float yPosition)
 	{
 		distance = d;
 		goal = g;
 		x = xPosition;
 		y = yPosition;
 	}
+};
+
+struct GoalDetails {
+	char* name;
+	int height;
+	int width;
+	float aspectRatio;
+
+	GoalDetails(char* n, int w, int h)
+	{
+		name = n;
+		
+		width = w;
+		height = h;
+
+		aspectRatio = static_cast<float>(width) / height;
+	}	
 };
 
 struct ShooterSettings {
@@ -40,29 +67,10 @@ public:
 	void enable();
 	void disable();
 
-	typedef enum {topGoal, middleGoal, lowGoal, towerGoal, none} goal;
+	void fire(GoalType::id target);
 
-	void fire(Targetting::goal target);
-
-	unordered_map<Targeting::goal, Target*> getVisibleTargets();
-	Goal getGoal(Targeting::goal goal);
-
-	struct Goal {
-		char* name;
-		int height;
-		int width;
-		float aspectRatio;
-
-		Goal(char* n, int w, int h)
-		{
-			name = n;
-			
-			width = w;
-			height = h;
-
-			aspectRatio = static_cast<float>(width) / height;
-		}
-	};
+	vector<VisibleTarget*> getVisibleTargets();
+	GoalDetails getGoal(GoalType::id goal);
 
 protected:
 
@@ -73,9 +81,11 @@ protected:
 	void clearTargets();
 	
 	void getFreshTargets();
-	ShooterSettings calculateShooterSettings(Targeting::goal target, double distance);
+	ShooterSettings calculateShooterSettings(GoalType::id target, double distance);
 	double calculateRotation(double distance, float x);
 	double calculateOptimalX(double distance);
+	
+	vector<VisibleTarget*>::const_iterator findGoal(GoalType::id target);
 	const static double allowableError = 0.08;
 
 	Shooter *shooter;
@@ -85,12 +95,12 @@ protected:
 
 	Task t_watchCamera;
 
-	unordered_map<Targeting::goal, Target*> visibleTargets;
-	unordered_map<Targeting::goal, Goal> goals;
+	vector<VisibleTarget*> visibleTargets;
+	vector<GoalDetails> goals;
 
-	Targeting::goal scoreParticle(BinaryImage* filtered, BinaryImage* threshold, ParticleAnalysisReport* report);
-	double computeDistance (BinaryImage *image, ParticleAnalysisReport *report, Targeting::goal goal);
-	Targeting::goal scoreAspectRatio(BinaryImage *image, ParticleAnalysisReport *report);
+	GoalType::id scoreParticle(BinaryImage* filtered, BinaryImage* threshold, ParticleAnalysisReport* report);
+	double computeDistance (BinaryImage *image, ParticleAnalysisReport *report, GoalType::id goal);
+	GoalType::id scoreAspectRatio(BinaryImage *image, ParticleAnalysisReport *report);
 	double scoreRectangularity(ParticleAnalysisReport *report);
 	double scoreXEdge(BinaryImage *image, ParticleAnalysisReport *report);
 	double scoreYEdge(BinaryImage *image, ParticleAnalysisReport *report);

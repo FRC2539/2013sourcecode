@@ -25,6 +25,7 @@ ShooterTilt::ShooterTilt(CANJaguar* m, int t, int b, int c):
 	{
 		currentPosition = -1;
 	}
+	lastDirection = 0;
 }
 
 ShooterTilt::~ShooterTilt()
@@ -79,6 +80,17 @@ void ShooterTilt::changeTilt()
 	else
 	{
 		return;
+	}
+	
+	// Handle case where position has drifted past counterSwitch. Hopefully not
+	// a common scenario.
+	if (lastDirection == -1 && direction == 1 && ! isPressed(counterSwitch))
+	{
+		currentPosition--;
+	}
+	else if (lastDirection == 1 && direction == -1 && ! isPressed(counterSwitch))
+	{
+		currentPosition++;
 	}
 
 	// Get control of the tilt motor. If not available, ignore this change.

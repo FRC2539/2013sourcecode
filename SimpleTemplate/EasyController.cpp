@@ -13,13 +13,13 @@ EasyController::~EasyController()
 
 bool EasyController::isClicked(int button)
 {
-	bool wasPressed = states[button];
+	bool wasPressed = previousState(button);
 
 	bool pressed = isPressed(button);
 
 	if (pressed && pressed != wasPressed)
 	{
-		wasPressed = true;
+		states[button] = true;
 		return true;
 	}
 
@@ -28,18 +28,18 @@ bool EasyController::isClicked(int button)
 
 bool EasyController::isPressed(int button)
 {
-	return getButton(button);
+	return controller.GetRawButton(button);
 }
 
 bool EasyController::isReleased(int button)
 {
-	bool wasPressed = states[button];
+	bool wasPressed = previousState(button);
 
 	bool pressed = isPressed(button);
 
 	if ( ! pressed && pressed != wasPressed)
 	{
-		wasPressed = false;
+		states[button] = false;
 		return true;
 	}
 
@@ -49,4 +49,14 @@ bool EasyController::isReleased(int button)
 float EasyController::getAxis(int axis)
 {
 	return controller.GetRawAxis(axis);
+}
+
+bool EasyController::previousState(int button)
+{
+	try {
+		return states.at(button);		
+	}
+	catch (const out_of_range& oor) {
+		return false;
+	}
 }

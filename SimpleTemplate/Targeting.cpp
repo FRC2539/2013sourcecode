@@ -42,9 +42,9 @@ Targeting::Targeting(Shooter* s, ShooterTilt* t, CANDrive* d, const char* camera
 	tilt = t;
 	drive = d;
 
-	goals[Targeting::topGoal] = Goal("High Goal", 62, 20);
-	goals[Targeting::middleGoal] = Goal("Middle Goal", 62, 29);
-	goals[Targeting::lowGoal] = Goal("Low Goal", 37, 32);
+	goals[GoalType::topGoal] = GoalDetails("High Goal", 62, 20);
+	goals[GoalType::middleGoal] = GoalDetails("Middle Goal", 62, 29);
+	goals[GoalType::lowGoal] = GoalDetails("Low Goal", 37, 32);
 
 	camera = &AxisCamera::GetInstance(cameraIP);
 	camera->WriteResolution(AxisCamera::kResolution_640x480);
@@ -56,39 +56,39 @@ Targeting::~Targeting()
 	clearTargets();
 }
 
-void Targeting::fire(Targeting::goal target)
+void Targeting::fire(GoalType::id target)
 {
 	disable();
 	
-	unordered_map<Targeting::goal, Target>::const_iterator goalIterator;
-	Target goal;
+	vector<VisibleTarget*>::const_iterator goalIterator;
+	VisibleTarget* goal;
 
 	double optimalX;
 	
 	getFreshTargets();
 	while (true)
 	{
-		goalIterator = visibleTargets.find(target);
+		goalIterator = findGoal(target);
 		if (goalIterator == visibleTargets.end())
 		{
 			return;
 		}
 		
-		Target goal = goalIterator->second;
-		optimalX = calculateOptimalX(goal.distance);
+		goal = goalIterator->second;
+		optimalX = calculateOptimalX(goal->distance);
 		
-		if (goal.x < optimalX + allowableError && goal.x > optimalX - allowableError)
+		if (goal->x < optimalX + allowableError && goal->x > optimalX - allowableError)
 		{
 			break;
 		}
 		
-		float rotation = calculateRotation(goal.distance, goal.x - optimalX);
+		float rotation = calculateRotation(goal->distance, goal->x - optimalX);
 		drive->rotate(rotation);
 		
 		getFreshTargets();
 	}
 	
-	ShooterSettings settings = calculateShooterSettings(target, goal.distance);
+	ShooterSettings settings = calculateShooterSettings(target, goal->distance);
 	
 	shooter->setSpeed(settings.speed);
 	tilt->goToPosition(settings.position);
@@ -105,12 +105,12 @@ void Targeting::fire(Targeting::goal target)
 	enable();
 }
 
-unordered_map<Targeting::goal, Target*> Targeting::getVisibleTargets()
+vector<VisibleTarget*> Targeting::getVisibleTargets()
 {
 	return visibleTargets;
 }
 
-Targeting::Goal Targeting::getGoal(Targeting::goal goal)
+GoalDetails Targeting::getGoal(GoalType::id goal)
 {
 	return goals[goal];
 }
@@ -200,16 +200,17 @@ void Targeting::findTargets(HSLImage *image, Threshold& threshold, ParticleFilte
 	double distance;
 
 	//Iterate through each particle, scoring it and determining whether it is a target or not
-	for (unsigned i = 0; i < reports->size(); i++) {
-
+	int sz = reports->size();
+	for (unsigned i = 0; i < sz; i++) 
+	{
 		ParticleAnalysisReport *report = &(reports->at(i));
 		
-		Targeting::goal current = scoreParticle(filteredImage, thresholdImage, report);
+		GoalType::id current = scoreParticle(filteredImage, thresholdImage, report);
 		
-		if (current != Targeting::none)
+		if (current != GoalType::none)
 		{
 			distance = computeDistance(thresholdImage, report, current);
-			visibleTargets.push_back(new Target(
+			visibleTargets.push_back(new VisibleTarget(
 				distance, 
 				current, 
 				report->center_mass_x_normalized,
@@ -237,7 +238,7 @@ void Targeting::findTargets(HSLImage *image, Threshold& threshold, ParticleFilte
 	* @param outer True if the particle should be treated as an outer target, false to treat it as a center target
 	* @return The estimated distance to the target in Inches.
 	*/
-double Targeting::computeDistance (BinaryImage* image, ParticleAnalysisReport* report, Targeting::goal goal) {
+double Targeting::computeDistance (BinaryImage* image, ParticleAnalysisReport* report, GoalType::id goal) {
 	double rectShort, height;
 	int targetHeight;
 
@@ -260,7 +261,7 @@ double Targeting::computeDistance (BinaryImage* image, ParticleAnalysisReport* r
 	* @param report The Particle Analysis Report for the particle, used for the width, height, and particle number
 	* @return The aspect ratio score (0-100)
 	*/
-Targeting::goal Targeting::scoreAspectRatio(BinaryImage *image, ParticleAnalysisReport *report){
+GoalType::id Targeting::scoreAspectRatio(BinaryImage *image, ParticleAnalysisReport *report){
 	double rectLong, rectShort, score;
 
 	imaqMeasureParticle(image->GetImaqImage(), report->particleIndex, 0, IMAQ_MT_EQUIVALENT_RECT_LONG_SIDE, &rectLong);
@@ -277,7 +278,7 @@ Targeting::goal Targeting::scoreAspectRatio(BinaryImage *image, ParticleAnalysis
 		}
 	}
 	
-	return Targeting::none;
+	return GoalType::none;
 }
 
 /**
@@ -343,25 +344,25 @@ double Targeting::scoreYEdge(BinaryImage *image, ParticleAnalysisReport *report)
 	return total;
 }
 
-Targeting::goal Targeting::scoreParticle(BinaryImage* filled, BinaryImage* original, ParticleAnalysisReport* report)
+GoalType::id Targeting::scoreParticle(BinaryImage* filled, BinaryImage* original, ParticleAnalysisReport* report)
 {
 	double rectangularity = scoreRectangularity(report);
 	
 	if (rectangularity < RECTANGULARITY_LIMIT)
 	{
-		return Targeting::none;
+		return GoalType::none;
 	}
 	
 	double xEdge = scoreXEdge(original, report);
 	if (xEdge < X_EDGE_LIMIT)
 	{
-		return Targeting::none;
+		return GoalType::none;
 	}
 	
 	double yEdge = scoreYEdge(original, report);
 	if (yEdge < X_EDGE_LIMIT)
 	{
-		return Targeting::none;
+		return GoalType::none;
 	}
 	
 	return scoreAspectRatio(filled, report);
@@ -383,7 +384,7 @@ void Targeting::getFreshTargets()
 	findTargets(camera->GetImage(), threshold, criteria);	
 }
 
-ShooterSettings Targeting::calculateShooterSettings(Targeting::goal target, double distance)
+ShooterSettings Targeting::calculateShooterSettings(GoalType::id target, double distance)
 {
 	ShooterSettings settings;
 	

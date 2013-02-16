@@ -2,7 +2,7 @@
 #define EASY_CONTROLLER_H
 
 #include "Joystick.h"
-#include <unordered_map>
+#include <vector>
 
 using namespace std;
 
@@ -22,7 +22,8 @@ protected:
 
 	Joystick controller;
 
-	unordered_map<int, bool> states;
+	vector<bool> states;
+	bool previousState(int button);
 };
 
 #endif

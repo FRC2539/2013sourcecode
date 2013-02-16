@@ -34,6 +34,8 @@ protected:
 	int currentPosition;
 	int targetPosition;
 	bool inMotion;
+	
+	int lastDirection;
 
 	char *saveFile;
 

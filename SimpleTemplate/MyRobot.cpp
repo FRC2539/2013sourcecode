@@ -32,7 +32,7 @@ public:
 		compressor(1,1),
 		drive(leftDrive, rightDrive),
 		shooter(&frontWheel, &backWheel, &trigger),
-		shooterTilt(&tilt, 2, 3, 4),
+		shooterTilt(&tilt, 3, 2, 4),
 		targeting(&shooter, &shooterTilt, &drive),
 		automaticTargetingMode(&targeting, &controller),
 		manualTargetingMode(&shooter, &shooterTilt, &rightStick),
