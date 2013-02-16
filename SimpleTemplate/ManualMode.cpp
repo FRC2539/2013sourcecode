@@ -22,23 +22,23 @@ void ManualMode::execute(DriverStationLCD *screen)
 {
 	if (joystick->isClicked(Sidewinder::up))
 	{
-		shooterTilt.changePosition(1);
+		shooterTilt->changePosition(1);
 	}
 	else if (joystick->isClicked(Sidewinder::down))
 	{
-		shooterTilt.changePosition(-1);
+		shooterTilt->changePosition(-1);
 	}
 	screen->PrintfLine(
 		DriverStationLCD::kUser_Line3,
 		"Shooter Position: %i",
-		shooterTilt.getPosition()
+		shooterTilt->getPosition()
 	);
 
 	shooterSpeed = getThrottleSpeed();
 
 	if (abs(shooterSpeed - oldShooterSpeed) >= 0.01)
 	{
-		shooter.setSpeed(shooterSpeed);
+		shooter->setSpeed(shooterSpeed);
 		oldShooterSpeed = shooterSpeed;
 		
 		screen->PrintfLine(
@@ -50,7 +50,7 @@ void ManualMode::execute(DriverStationLCD *screen)
 
 	if (joystick->isClicked(Sidewinder::trigger))
 	{
-		shooter.fire();
+		shooter->fire();
 	}
 
 }

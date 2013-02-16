@@ -9,11 +9,13 @@ public:
 
 	LoadingMode(ShooterTilt *shooterTilt);
 	~LoadingMode();
+	
+	void begin(DriverStationLCD* screen);
 
 protected:
 
 	ShooterTilt *shooterTilt;
-	static int loadingPosition = 10;
+	const static int loadingPosition = 10;
 
 };
 

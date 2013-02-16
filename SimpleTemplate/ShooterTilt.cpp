@@ -1,4 +1,5 @@
 #include "ShooterTilt.h"
+#include "Commands/WaitCommand.h"
 #include <fstream>
 #include <iostream>
 
@@ -103,7 +104,7 @@ void ShooterTilt::changeTilt()
 
 	while (targetPosition == -1 || currentPosition != targetPosition)
 	{
-		Wait(0.05);
+		WaitCommand(0.05);
 
 		pressed = isPressed(counterSwitch);
 		if (pressed && ! wasPressed)

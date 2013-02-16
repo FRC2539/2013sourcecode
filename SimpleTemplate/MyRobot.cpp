@@ -30,10 +30,10 @@ public:
 		leftDrive(4),
 		trigger(1,2),
 		compressor(1,1),
-		drive(leftDrive, rightDrive),
+		drive(&leftDrive, &rightDrive),
 		shooter(&frontWheel, &backWheel, &trigger),
 		shooterTilt(&tilt, 3, 2, 4),
-		targeting(&shooter, &shooterTilt, &drive),
+		targeting(&shooter, &shooterTilt, &drive, "10.25.39.11"),
 		automaticTargetingMode(&targeting, &controller),
 		manualTargetingMode(&shooter, &shooterTilt, &rightStick),
 		loadingMode(&shooterTilt)
@@ -133,7 +133,7 @@ protected:
 
 	void changeMode(TeleopMode *m)
 	{
-		if (currentMode->name == m->name)
+		if (currentMode->getName() == m->getName())
 		{
 			m = &automaticTargetingMode;
 		}

@@ -2,53 +2,28 @@
 #include "Vision/RGBImage.h"
 #include "Vision/HSLImage.h"
 #include "Vision/BinaryImage.h"
+#include "Commands/WaitCommand.h"
 #include <cmath>
-#include <vector>
-
-using namespace std;
-
-//Camera constants used for distance calculation
-#define X_IMAGE_RES 640
-#define VIEW_ANGLE 43.5
-#define PI 3.141592653
-
-//Score limits used for target identification
-#define RECTANGULARITY_LIMIT 60
-#define ASPECT_RATIO_LIMIT 75
-#define X_EDGE_LIMIT 40
-#define Y_EDGE_LIMIT 60
-
-//Minimum area of particles to be considered
-#define AREA_MINIMUM 500
-
-//Edge profile constants used for hollowness score calculation
-#define XMAXSIZE 24
-#define XMINSIZE 24
-#define YMAXSIZE 24
-#define YMINSIZE 48
-const double xMax[XMAXSIZE] = {1, 1, 1, 1, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, 1, 1, 1, 1};
-const double xMin[XMINSIZE] = {.4, .6, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, 0.6, 0};
-const double yMax[YMAXSIZE] = {1, 1, 1, 1, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, 1, 1, 1, 1};
-const double yMin[YMINSIZE] = {
-	.4, .6, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05,
-	.05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05,
-	.05, .05, .6, 0
-};
 
 Targeting::Targeting(Shooter* s, ShooterTilt* t, CANDrive* d, const char* cameraIP):
-	t_watchCamera("watchCamera", (FUNCPTR)s_watchCamera)
+	t_watchCamera("watchCamera", (FUNCPTR)s_watchCamera),
+	threshold(100, 180, 200, 255, 200, 255) //HSV threshold criteria, ranges are in that order
 {
 	shooter = s;
 	tilt = t;
 	drive = d;
 
-	goals[GoalType::topGoal] = GoalDetails("High Goal", 62, 20);
-	goals[GoalType::middleGoal] = GoalDetails("Middle Goal", 62, 29);
-	goals[GoalType::lowGoal] = GoalDetails("Low Goal", 37, 32);
+	goals[GoalType::top] = GoalDetails("High Goal", 62, 20);
+	goals[GoalType::middle] = GoalDetails("Middle Goal", 62, 29);
+	goals[GoalType::low] = GoalDetails("Low Goal", 37, 32);
 
 	camera = &AxisCamera::GetInstance(cameraIP);
 	camera->WriteResolution(AxisCamera::kResolution_640x480);
 	camera->WriteBrightness(0);
+	
+	/*criteria[0] = {
+			{IMAQ_MT_AREA, AREA_MINIMUM, 65535, false, false}
+	};*/
 }
 
 Targeting::~Targeting()
@@ -60,7 +35,7 @@ void Targeting::fire(GoalType::id target)
 {
 	disable();
 	
-	vector<VisibleTarget*>::const_iterator goalIterator;
+	list<VisibleTarget*>::const_iterator goalIterator;
 	VisibleTarget* goal;
 
 	double optimalX;
@@ -74,7 +49,7 @@ void Targeting::fire(GoalType::id target)
 			return;
 		}
 		
-		goal = goalIterator->second;
+		goal = *goalIterator;
 		optimalX = calculateOptimalX(goal->distance);
 		
 		if (goal->x < optimalX + allowableError && goal->x > optimalX - allowableError)
@@ -95,17 +70,17 @@ void Targeting::fire(GoalType::id target)
 
 	while (tilt->getPosition() != settings.position)
 	{
-		Wait(0.05);
+		WaitCommand(0.05);
 	}
 	
 	shooter->fire();
 
-	Wait(0.5);
+	WaitCommand(0.5);
 	
 	enable();
 }
 
-vector<VisibleTarget*> Targeting::getVisibleTargets()
+list<VisibleTarget*> Targeting::getVisibleTargets()
 {
 	return visibleTargets;
 }
@@ -129,9 +104,11 @@ void Targeting::disable()
 
 void Targeting::clearTargets()
 {
-	for (auto i = visibleTargets.begin(); i != visibleTargets.end(); i++)
+	list<VisibleTarget*>::iterator i;
+	list<VisibleTarget*>::iterator end = visibleTargets.end();
+	for (i = visibleTargets.begin(); i != end; i++)
 	{
-		delete i->second;
+		delete *i;
 	}
 }
 
@@ -143,11 +120,6 @@ int Targeting::s_watchCamera(Targeting* Targeting)
 
 void Targeting::watchCamera()
 {
-	Threshold threshold(100, 180, 200, 255, 200, 255); //HSV threshold criteria, ranges are in that order
-	ParticleFilterCriteria2 criteria[] = {
-			{IMAQ_MT_AREA, AREA_MINIMUM, 65535, false, false}
-	};
-	
 	float center;
 
 	SEM_ID freshImage;
@@ -157,14 +129,17 @@ void Targeting::watchCamera()
 		semTake(freshImage, WAIT_FOREVER);
 		
 		clearTargets();
-		findTargets(camera->GetImage(), threshold, criteria);
+		findTargets(camera->GetImage());
 		
 		if (visibleTargets.size() > 0)
 		{			
 			center = 0;
-			for (auto i = visibleTargets.begin(); i != visibleTargets.end(); i++)
+			
+			list<VisibleTarget*>::iterator i;
+			list<VisibleTarget*>::iterator end = visibleTargets.end();
+			for (i = visibleTargets.begin(); i != end; i++)
 			{
-				center += i->second.y;
+				center += (*i)->y;
 			}
 			
 			center /= visibleTargets.size();
@@ -183,7 +158,7 @@ void Targeting::watchCamera()
 	}
 }
 
-void Targeting::findTargets(HSLImage *image, Threshold& threshold, ParticleFilterCriteria2& criteria)
+void Targeting::findTargets(HSLImage *image)
 {
 	BinaryImage *thresholdImage = image->ThresholdHSV(threshold);  // get just the green target pixels
 	//thresholdImage->Write("/threshold.bmp");
@@ -201,7 +176,7 @@ void Targeting::findTargets(HSLImage *image, Threshold& threshold, ParticleFilte
 
 	//Iterate through each particle, scoring it and determining whether it is a target or not
 	int sz = reports->size();
-	for (unsigned i = 0; i < sz; i++) 
+	for (int i = 0; i < sz; i++) 
 	{
 		ParticleAnalysisReport *report = &(reports->at(i));
 		
@@ -245,7 +220,7 @@ double Targeting::computeDistance (BinaryImage* image, ParticleAnalysisReport* r
 	imaqMeasureParticle(image->GetImaqImage(), report->particleIndex, 0, IMAQ_MT_EQUIVALENT_RECT_SHORT_SIDE, &rectShort);
 	//using the smaller of the estimated rectangle short side and the bounding rectangle height results in better performance
 	//on skewed rectangles
-	height = min(report->boundingRect.height, rectShort);
+	height = min(static_cast<double>(report->boundingRect.height), rectShort);
 	targetHeight = goals[goal].height;
 
 	return X_IMAGE_RES * targetHeight / (height * 12 * 2 * tan(VIEW_ANGLE*PI/(180*2)));
@@ -267,14 +242,16 @@ GoalType::id Targeting::scoreAspectRatio(BinaryImage *image, ParticleAnalysisRep
 	imaqMeasureParticle(image->GetImaqImage(), report->particleIndex, 0, IMAQ_MT_EQUIVALENT_RECT_LONG_SIDE, &rectLong);
 	imaqMeasureParticle(image->GetImaqImage(), report->particleIndex, 0, IMAQ_MT_EQUIVALENT_RECT_SHORT_SIDE, &rectShort);
 
-	
-	for (auto i = goals.begin(); i != goals.end(); i++)
+	vector<GoalDetails>::iterator i;
+	vector<GoalDetails>::iterator end = goals.end();
+	int sz = goals.size();
+	for (int i = 0; i < sz; i++)
 	{
-		score = 100 * (1-fabs((1-((rectLong/rectShort)/i->second.aspectRatio))));
+		score = 100 * (1-fabs((1-((rectLong/rectShort)/goals[i].aspectRatio))));
 		
 		if (score > ASPECT_RATIO_LIMIT)
 		{
-			return i->first;
+			return (GoalType::id)i;
 		}
 	}
 	
@@ -372,16 +349,11 @@ void Targeting::getFreshTargets()
 {
 	while ( ! camera->IsFreshImage())
 	{
-		Wait(0.05);
+		WaitCommand(0.05);
 	}
-	
-	Threshold threshold(100, 180, 200, 255, 200, 255); //HSV threshold criteria, ranges are in that order
-	ParticleFilterCriteria2 criteria[] = {
-			{IMAQ_MT_AREA, AREA_MINIMUM, 65535, false, false}
-	};
 		
 	clearTargets();
-	findTargets(camera->GetImage(), threshold, criteria);	
+	findTargets(camera->GetImage());	
 }
 
 ShooterSettings Targeting::calculateShooterSettings(GoalType::id target, double distance)
@@ -390,6 +362,8 @@ ShooterSettings Targeting::calculateShooterSettings(GoalType::id target, double 
 	
 	settings.speed = .65;
 	settings.position = 20;
+	
+	return settings;
 }
 
 double Targeting::calculateRotation(double distance, float x)
@@ -402,4 +376,16 @@ double Targeting::calculateOptimalX(double distance)
 	return 0;
 }
 
-
+list<VisibleTarget*>::const_iterator Targeting::findGoal(GoalType::id goal)
+{
+	list<VisibleTarget*>::iterator i;
+	list<VisibleTarget*>::iterator end = visibleTargets.end();
+	for (i = visibleTargets.begin(); i != end; i++)
+	{
+		if ((*i)->goal == goal)
+		{
+			return i;
+		}
+	}
+	 return i;
+}

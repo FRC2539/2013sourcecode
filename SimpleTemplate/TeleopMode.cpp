@@ -28,4 +28,7 @@ void TeleopMode::end()
 
 }
 
-
+char* TeleopMode::getName()
+{
+	return name;
+}

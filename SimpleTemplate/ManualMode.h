@@ -11,6 +11,8 @@ public:
 
 	ManualMode(Shooter* shooter, ShooterTilt* shooterTilt, EasyController* joystick);
 	~ManualMode();
+	
+	void execute(DriverStationLCD* screen);
 
 protected:
 

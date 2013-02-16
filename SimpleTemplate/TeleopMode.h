@@ -13,6 +13,8 @@ public:
 	virtual void begin(DriverStationLCD* screen);
 	virtual void execute(DriverStationLCD* screen);
 	virtual void end();
+	
+	char* getName();
 
 protected:
 

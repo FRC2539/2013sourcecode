@@ -1,4 +1,5 @@
 #include "Shooter.h"
+#include "Commands/WaitCommand.h"
 
 Shooter::Shooter(CANJaguar* f, CANJaguar* b, DoubleSolenoid* l):
 	t_launch("launch", (FUNCPTR)s_launch)
@@ -35,7 +36,7 @@ void Shooter::launch()
 	semTake(launcherSem, NO_WAIT);
 
 	launcher->Set(DoubleSolenoid::kForward);
-	Wait(0.3);
+	WaitCommand(0.3);
 	launcher->Set(DoubleSolenoid::kReverse);
 
 	semGive(launcherSem);

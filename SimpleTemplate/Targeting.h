@@ -7,9 +7,38 @@
 #include "Task.h"
 #include "Synchronized.h"
 #include "Vision/AxisCamera.h"
-#include <unordered_map>
+#include <vector>
+#include <list>
 
 using namespace std;
+
+//Camera constants used for distance calculation
+#define X_IMAGE_RES 640
+#define VIEW_ANGLE 43.5
+#define PI 3.141592653
+
+//Score limits used for target identification
+#define RECTANGULARITY_LIMIT 60
+#define ASPECT_RATIO_LIMIT 75
+#define X_EDGE_LIMIT 40
+#define Y_EDGE_LIMIT 60
+
+//Minimum area of particles to be considered
+#define AREA_MINIMUM 500
+
+//Edge profile constants used for hollowness score calculation
+#define XMAXSIZE 24
+#define XMINSIZE 24
+#define YMAXSIZE 24
+#define YMINSIZE 48
+const double xMax[XMAXSIZE] = {1, 1, 1, 1, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, 1, 1, 1, 1};
+const double xMin[XMINSIZE] = {.4, .6, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, .1, 0.6, 0};
+const double yMax[YMAXSIZE] = {1, 1, 1, 1, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, .5, 1, 1, 1, 1};
+const double yMin[YMINSIZE] = {
+	.4, .6, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05,
+	.05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05, .05,
+	.05, .05, .6, 0
+};
 
 namespace GoalType {
 	enum id {
@@ -69,7 +98,7 @@ public:
 
 	void fire(GoalType::id target);
 
-	vector<VisibleTarget*> getVisibleTargets();
+	list<VisibleTarget*> getVisibleTargets();
 	GoalDetails getGoal(GoalType::id goal);
 
 protected:
@@ -85,7 +114,7 @@ protected:
 	double calculateRotation(double distance, float x);
 	double calculateOptimalX(double distance);
 	
-	vector<VisibleTarget*>::const_iterator findGoal(GoalType::id target);
+	list<VisibleTarget*>::const_iterator findGoal(GoalType::id target);
 	const static double allowableError = 0.08;
 
 	Shooter *shooter;
@@ -95,7 +124,7 @@ protected:
 
 	Task t_watchCamera;
 
-	vector<VisibleTarget*> visibleTargets;
+	list<VisibleTarget*> visibleTargets;
 	vector<GoalDetails> goals;
 
 	GoalType::id scoreParticle(BinaryImage* filtered, BinaryImage* threshold, ParticleAnalysisReport* report);
@@ -104,6 +133,9 @@ protected:
 	double scoreRectangularity(ParticleAnalysisReport *report);
 	double scoreXEdge(BinaryImage *image, ParticleAnalysisReport *report);
 	double scoreYEdge(BinaryImage *image, ParticleAnalysisReport *report);
+	
+	Threshold threshold;
+	ParticleFilterCriteria2 criteria[1];
 };
 
 #endif

@@ -1,5 +1,6 @@
 #include "AutomaticMode.h"
 #include <vector>
+#include <list>
 
 AutomaticMode::AutomaticMode(Targeting* t, EasyController* c)
 {
@@ -23,7 +24,7 @@ void AutomaticMode::begin(DriverStationLCD *screen)
 
 void AutomaticMode::execute(DriverStationLCD *screen)
 {
-	vector<VisibleTarget*> targets = targeting->getVisibleTargets();
+	list<VisibleTarget*> targets = targeting->getVisibleTargets();
 	
 	screen->PrintfLine(DriverStationLCD::kUser_Line2, "");
 	screen->PrintfLine(DriverStationLCD::kUser_Line3, "");
@@ -31,10 +32,11 @@ void AutomaticMode::execute(DriverStationLCD *screen)
 	GoalType::id rightBumper = GoalType::none;
 	GoalType::id leftBumper = GoalType::none;
 	
-	auto i = targets.begin();
-	if (i != targets.end())
+	list<VisibleTarget*>::iterator i = targets.begin();
+	list<VisibleTarget*>::iterator end = targets.end();
+	if (i != end)
 	{		   
-		rightBumper = i->second->goal;
+		rightBumper = (*i)->goal;
 		
 		screen->PrintfLine(
 			DriverStationLCD::kUser_Line2,
@@ -45,9 +47,9 @@ void AutomaticMode::execute(DriverStationLCD *screen)
 		i++;
 	}
 	
-	if (i != targets.end())
+	if (i != end)
 	{
-		leftBumper = i->second->goal;
+		leftBumper = (*i)->goal;
 		
 		screen->PrintfLine(
 			DriverStationLCD::kUser_Line2,
