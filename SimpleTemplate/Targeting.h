@@ -14,21 +14,21 @@ using namespace std;
 struct Target {
 	double distance;
 	int goal;
-    float x;
-    float y;
+	float x;
+	float y;
 
 	Target(double d, int g, float xPosition, float yPosition)
 	{
 		distance = d;
 		goal = g;
-        x = xPosition;
-        y = yPosition;
+		x = xPosition;
+		y = yPosition;
 	}
 };
 
 struct ShooterSettings {
-    double speed;
-    int position;
+	double speed;
+	int position;
 };
 
 class Targeting {
@@ -45,24 +45,24 @@ public:
 	void fire(Targetting::goal target);
 
 	unordered_map<Targeting::goal, Target*> getVisibleTargets();
-    Goal getGoal(Targeting::goal goal);
+	Goal getGoal(Targeting::goal goal);
 
-    struct Goal {
-        char* name;
-        int height;
-        int width;
-        float aspectRatio;
+	struct Goal {
+		char* name;
+		int height;
+		int width;
+		float aspectRatio;
 
-        Goal(char* n, int w, int h)
-        {
-            name = n;
-            
-            width = w;
-            height = h;
+		Goal(char* n, int w, int h)
+		{
+			name = n;
+			
+			width = w;
+			height = h;
 
-            aspectRatio = static_cast<float>(width) / height;
-        }
-    };
+			aspectRatio = static_cast<float>(width) / height;
+		}
+	};
 
 protected:
 
@@ -71,10 +71,12 @@ protected:
 
 	void findTargets(HSLImage* image);
 	void clearTargets();
-    
-    void getFreshTargets();
-    ShooterSettings calculateShooterSettings(double distance);
-    void calculateRotation(double distance, float x);
+	
+	void getFreshTargets();
+	ShooterSettings calculateShooterSettings(Targeting::goal target, double distance);
+	double calculateRotation(double distance, float x);
+	double calculateOptimalX(double distance);
+	const static double allowableError = 0.08;
 
 	Shooter *shooter;
 	ShooterTilt *tilt;
@@ -86,7 +88,7 @@ protected:
 	unordered_map<Targeting::goal, Target*> visibleTargets;
 	unordered_map<Targeting::goal, Goal> goals;
 
-    Targeting::goal scoreParticle(BinaryImage* filtered, BinaryImage* threshold, ParticleAnalysisReport* report);
+	Targeting::goal scoreParticle(BinaryImage* filtered, BinaryImage* threshold, ParticleAnalysisReport* report);
 	double computeDistance (BinaryImage *image, ParticleAnalysisReport *report, Targeting::goal goal);
 	Targeting::goal scoreAspectRatio(BinaryImage *image, ParticleAnalysisReport *report);
 	double scoreRectangularity(ParticleAnalysisReport *report);

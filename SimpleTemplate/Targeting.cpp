@@ -58,41 +58,51 @@ Targeting::~Targeting()
 
 void Targeting::fire(Targeting::goal target)
 {
-    disable();
-    
-    unordered_map<Targeting::goal, Target>::const_iterator goalIterator;
-    Target goal;
-    
-    getFreshTargets();
-    while (true)
-    {
-        goalIterator = visibleTargets.find(target);
-        if (goalIterator == visibleTargets.end())
-        {
-            return;
-        }
-        
-        Target goal = goalIterator->second;
-        
-        if (abs(goal.x) < .05)
-        {
-            break;
-        }
-        
-        float rotation = calculateRotation(goal.distance, goal.x);
-        drive->rotate(rotation);
-        
-        getFreshTargets();
-    }
-    
-    ShooterSettings settings = calculateShooterSettings(goal.distance);
-    
-    shooter->setSpeed(settings.speed);
-    tilt->goToPosition(settings.position);
-    
-    shooter->fire();
-    
-    enable();
+	disable();
+	
+	unordered_map<Targeting::goal, Target>::const_iterator goalIterator;
+	Target goal;
+
+	double optimalX;
+	
+	getFreshTargets();
+	while (true)
+	{
+		goalIterator = visibleTargets.find(target);
+		if (goalIterator == visibleTargets.end())
+		{
+			return;
+		}
+		
+		Target goal = goalIterator->second;
+		optimalX = calculateOptimalX(goal.distance);
+		
+		if (goal.x < optimalX + allowableError && goal.x > optimalX - allowableError)
+		{
+			break;
+		}
+		
+		float rotation = calculateRotation(goal.distance, goal.x - optimalX);
+		drive->rotate(rotation);
+		
+		getFreshTargets();
+	}
+	
+	ShooterSettings settings = calculateShooterSettings(target, goal.distance);
+	
+	shooter->setSpeed(settings.speed);
+	tilt->goToPosition(settings.position);
+
+	while (tilt->getPosition() != settings.position)
+	{
+		Wait(0.05);
+	}
+	
+	shooter->fire();
+
+	Wait(0.5);
+	
+	enable();
 }
 
 unordered_map<Targeting::goal, Target*> Targeting::getVisibleTargets()
@@ -102,12 +112,13 @@ unordered_map<Targeting::goal, Target*> Targeting::getVisibleTargets()
 
 Targeting::Goal Targeting::getGoal(Targeting::goal goal)
 {
-    return goals[goal];
+	return goals[goal];
 }
 
 
 void Targeting::enable()
 {
+	shooter->setSpeed(0);
 	t_watchCamera.Start();
 }
 
@@ -136,37 +147,37 @@ void Targeting::watchCamera()
 	ParticleFilterCriteria2 criteria[] = {
 			{IMAQ_MT_AREA, AREA_MINIMUM, 65535, false, false}
 	};
-    
-    float center;
+	
+	float center;
 
 	SEM_ID freshImage;
 	while (true)
 	{
 		freshImage = camera->GetNewImageSem();
 		semTake(freshImage, WAIT_FOREVER);
-        
-        clearTargets();
+		
+		clearTargets();
 		findTargets(camera->GetImage(), threshold, criteria);
-        
-        if (visibleTargets.size() > 0)
-        {            
-            center = 0;
-            for (auto i = visibleTargets.begin(); i != visibleTargets.end(); i++)
-            {
-                center += i->second.y;
-            }
-            
-            center /= visibleTargets.size();
-            
-            if (center > 0.1)
-            {
-                tilt->changePosition(1);
-            }
-            else if (center < 0.1)
-            {
-                tilt->changePosition(-1);
-            }
-        }
+		
+		if (visibleTargets.size() > 0)
+		{			
+			center = 0;
+			for (auto i = visibleTargets.begin(); i != visibleTargets.end(); i++)
+			{
+				center += i->second.y;
+			}
+			
+			center /= visibleTargets.size();
+			
+			if (center > 0.1)
+			{
+				tilt->changePosition(1);
+			}
+			else if (center < 0.1)
+			{
+				tilt->changePosition(-1);
+			}
+		}
 
 		semGive(freshImage);
 	}
@@ -186,25 +197,25 @@ void Targeting::findTargets(HSLImage *image, Threshold& threshold, ParticleFilte
 	BinaryImage *filteredImage = convexHullImage;
 
 	vector<ParticleAnalysisReport> *reports = filteredImage->GetOrderedParticleAnalysisReports();  //get a particle analysis report for each particle
-    double distance;
+	double distance;
 
 	//Iterate through each particle, scoring it and determining whether it is a target or not
 	for (unsigned i = 0; i < reports->size(); i++) {
 
 		ParticleAnalysisReport *report = &(reports->at(i));
-        
-        Targeting::goal current = scoreParticle(filteredImage, thresholdImage, report);
-        
-        if (current != Targeting::none)
-        {
-            distance = computeDistance(thresholdImage, report, current);
-            visibleTargets.push_back(new Target(
-                distance, 
-                current, 
-                report->center_mass_x_normalized,
-                report->center_mass_y_normalized
-            ));
-        }
+		
+		Targeting::goal current = scoreParticle(filteredImage, thresholdImage, report);
+		
+		if (current != Targeting::none)
+		{
+			distance = computeDistance(thresholdImage, report, current);
+			visibleTargets.push_back(new Target(
+				distance, 
+				current, 
+				report->center_mass_x_normalized,
+				report->center_mass_y_normalized
+			));
+		}
 	}
 
 	// be sure to delete images after using them
@@ -255,18 +266,18 @@ Targeting::goal Targeting::scoreAspectRatio(BinaryImage *image, ParticleAnalysis
 	imaqMeasureParticle(image->GetImaqImage(), report->particleIndex, 0, IMAQ_MT_EQUIVALENT_RECT_LONG_SIDE, &rectLong);
 	imaqMeasureParticle(image->GetImaqImage(), report->particleIndex, 0, IMAQ_MT_EQUIVALENT_RECT_SHORT_SIDE, &rectShort);
 
-    
-    for (auto i = goals.begin(); i != goals.end(); i++)
-    {
-        score = 100 * (1-fabs((1-((rectLong/rectShort)/i->second.aspectRatio))));
-        
-        if (score > ASPECT_RATIO_LIMIT)
-        {
-            return i->first;
-        }
-    }
-    
-    return Targeting::none;
+	
+	for (auto i = goals.begin(); i != goals.end(); i++)
+	{
+		score = 100 * (1-fabs((1-((rectLong/rectShort)/i->second.aspectRatio))));
+		
+		if (score > ASPECT_RATIO_LIMIT)
+		{
+			return i->first;
+		}
+	}
+	
+	return Targeting::none;
 }
 
 /**
@@ -334,54 +345,60 @@ double Targeting::scoreYEdge(BinaryImage *image, ParticleAnalysisReport *report)
 
 Targeting::goal Targeting::scoreParticle(BinaryImage* filled, BinaryImage* original, ParticleAnalysisReport* report)
 {
-    double rectangularity = scoreRectangularity(report);
-    
-    if (rectangularity < RECTANGULARITY_LIMIT)
-    {
-        return Targeting::none;
-    }
-    
-    double xEdge = scoreXEdge(original, report);
-    if (xEdge < X_EDGE_LIMIT)
-    {
-        return Targeting::none;
-    }
-    
-    double yEdge = scoreYEdge(original, report);
-    if (yEdge < X_EDGE_LIMIT)
-    {
-        return Targeting::none;
-    }
-    
-    return scoreAspectRatio(filled, report);
+	double rectangularity = scoreRectangularity(report);
+	
+	if (rectangularity < RECTANGULARITY_LIMIT)
+	{
+		return Targeting::none;
+	}
+	
+	double xEdge = scoreXEdge(original, report);
+	if (xEdge < X_EDGE_LIMIT)
+	{
+		return Targeting::none;
+	}
+	
+	double yEdge = scoreYEdge(original, report);
+	if (yEdge < X_EDGE_LIMIT)
+	{
+		return Targeting::none;
+	}
+	
+	return scoreAspectRatio(filled, report);
 }
 
 void Targeting::getFreshTargets()
 {
-    while ( ! camera->IsFreshImage())
-    {
-        Wait(0.05);
-    }
-    
-    Threshold threshold(100, 180, 200, 255, 200, 255); //HSV threshold criteria, ranges are in that order
-    ParticleFilterCriteria2 criteria[] = {
-            {IMAQ_MT_AREA, AREA_MINIMUM, 65535, false, false}
-    };
-        
-    clearTargets();
-    findTargets(camera->GetImage(), threshold, criteria);    
+	while ( ! camera->IsFreshImage())
+	{
+		Wait(0.05);
+	}
+	
+	Threshold threshold(100, 180, 200, 255, 200, 255); //HSV threshold criteria, ranges are in that order
+	ParticleFilterCriteria2 criteria[] = {
+			{IMAQ_MT_AREA, AREA_MINIMUM, 65535, false, false}
+	};
+		
+	clearTargets();
+	findTargets(camera->GetImage(), threshold, criteria);	
 }
 
-ShooterSettings Targeting::calculateShooterSettings(double distance)
+ShooterSettings Targeting::calculateShooterSettings(Targeting::goal target, double distance)
 {
-    ShooterSettings settings;
-    
-    settings.speed = .65;
-    settings.position = 20;
+	ShooterSettings settings;
+	
+	settings.speed = .65;
+	settings.position = 20;
 }
 
-void Targeting::calculateRotation(double distance, float x)
+double Targeting::calculateRotation(double distance, float x)
 {
-    return x * 20;
+	return x * 20;
 }
+
+double Targeting::calculateOptimalX(double distance)
+{
+	return 0;
+}
+
 
