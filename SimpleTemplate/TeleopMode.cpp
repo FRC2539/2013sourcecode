@@ -28,7 +28,7 @@ void TeleopMode::end()
 
 }
 
-char* TeleopMode::getName()
+bool TeleopMode::operator==(TeleopMode& other)
 {
-	return name;
+	return name == other.name;
 }

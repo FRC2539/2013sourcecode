@@ -25,6 +25,7 @@ protected:
 
 	float getThrottleSpeed();
 
+	bool optimal;
 };
 
 #endif

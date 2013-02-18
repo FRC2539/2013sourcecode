@@ -131,15 +131,16 @@ protected:
 		}
 	}
 
-	void changeMode(TeleopMode *m)
+	void changeMode(TeleopMode *newMode)
 	{
-		if (currentMode->getName() == m->getName())
+		// If we're unsetting a mode, fall back to the default (Automatic)
+		if (currentMode == newMode)
 		{
-			m = &automaticTargetingMode;
+			newMode = &automaticTargetingMode;
 		}
 
 		currentMode->end();
-		currentMode = m;
+		currentMode = newMode;
 		currentMode->begin(screen);
 	}
 };

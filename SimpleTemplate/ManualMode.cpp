@@ -11,6 +11,7 @@ ManualMode::ManualMode(Shooter* s, ShooterTilt* t, EasyController* j)
 	indicator = "** MANUAL TARGETING **";
 
 	oldShooterSpeed = getThrottleSpeed();
+	optimal = false;
 }
 
 ManualMode::~ManualMode()
@@ -45,6 +46,28 @@ void ManualMode::execute(DriverStationLCD *screen)
 			DriverStationLCD::kUser_Line2,
 			"Shooter Speed: %4.2d%%",
 			shooterSpeed * 100
+		);
+
+		optimal = false;
+	}
+	else if (joystick->isClicked(Sidewinder::rightFront))
+	{
+		if (optimal)
+		{
+			shooter->setSpeed(0);
+			shooterSpeed = 0;
+		}
+		else
+		{
+			shooter->setOptimalSpeed();
+			shooterSpeed = shooter->getCurrentSpeed();
+		}
+		optimal = ! optimal;
+
+		screen->PrintfLine(
+			DriverStationLCD::kUser_Line2,
+			"Shooter Speed: %4.2d%%",
+			shooterSpeed
 		);
 	}
 

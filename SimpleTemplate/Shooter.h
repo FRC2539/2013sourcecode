@@ -13,7 +13,10 @@ public:
 	~Shooter();
 
 	void setSpeed(double speed);
+	void setOptimalSpeed();
 	void fire();
+
+	float getCurrentSpeed();
 
 protected:
 
@@ -26,6 +29,9 @@ protected:
 
 	Task t_launch;
 	SEM_ID launcherSem;
+
+	const static float optimalSpeed = 0.65;
+	float currentSpeed;
 };
 
 #endif

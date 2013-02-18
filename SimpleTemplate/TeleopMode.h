@@ -14,7 +14,7 @@ public:
 	virtual void execute(DriverStationLCD* screen);
 	virtual void end();
 	
-	char* getName();
+	bool operator==(TeleopMode& other);
 
 protected:
 

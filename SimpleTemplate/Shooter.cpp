@@ -18,11 +18,23 @@ void Shooter::setSpeed(double speed)
 {
 	frontWheel->Set(speed * 1);
 	backWheel->Set(speed * 0.92);
+
+	currentSpeed = speed;
+}
+
+void Shooter::setOptimalSpeed()
+{
+	setSpeed(optimalSpeed);
 }
 
 void Shooter::fire()
 {
 	t_launch.Start();
+}
+
+float Shooter::getCurrentSpeed()
+{
+	return currentSpeed * 100;
 }
 
 int Shooter::s_launch(Shooter *shooter)
