@@ -1,8 +1,8 @@
-#include "CalibrationMode.h"
+#include "CalibrateSystemsMode.h"
 #include <vector>
 #include <list>
 
-CalibrationMode::CalibrationMode(Shooter* s, ShooterTilt* r, Targeting* t, EasyController* c)
+CalibrateSystemsMode::CalibrateSystemsMode(Shooter* s, ShooterTilt* r, Targeting* t, EasyController* c)
 {
 	shooter = s;
 	tilt = r;
@@ -13,20 +13,20 @@ CalibrationMode::CalibrationMode(Shooter* s, ShooterTilt* r, Targeting* t, EasyC
 	indicator = "** ROBOT CALIBRATION **";
 }
 
-CalibrationMode::~CalibrationMode()
+CalibrateSystemsMode::~CalibrateSystemsMode()
 {
 
 }
 
-void CalibrationMode::begin(DriverStationLCD *screen)
+void CalibrateSystemsMode::begin(DriverStationLCD *screen)
 {
 	TeleopMode::begin(screen);
 	targeting->enable();
 
-	currentSystem = select;
+	currentSystem = RobotSystem::select;
 }
 
-void CalibrationMode::execute(DriverStationLCD *screen)
+void CalibrateSystemsMode::execute(DriverStationLCD *screen)
 {
 	list<VisibleTarget*> targets = targeting->getVisibleTargets();
 
@@ -74,12 +74,12 @@ void CalibrationMode::execute(DriverStationLCD *screen)
 	}
 }
 
-void CalibrationMode::end()
+void CalibrateSystemsMode::end()
 {
 	targeting->disable();
 }
 
-void CalibrationMode::setSystem(RobotSystem::mode newSystem)
+void CalibrateSystemsMode::setSystem(RobotSystem::mode newSystem)
 {
 	if (newSystem == RobotSystem::select)
 	{

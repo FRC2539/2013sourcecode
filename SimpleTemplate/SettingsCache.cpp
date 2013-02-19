@@ -6,7 +6,7 @@ using namespace std;
 
 SettingsCache::SettingsCache()
 {
-	ifstream settings(settingsFile);
+	ifstream settings(SETTINGS_FILE);
 	if (settings.is_open() == false)
 	{
 		return;
@@ -51,7 +51,7 @@ SettingsCache::SettingsCache()
 
 SettingsCache::~SettingsCache()
 {
-	ofstream settings(settingsFile);
+	ofstream settings(SETTINGS_FILE);
 	
 	vector<SaveableSetting>::iterator i;
 	int sz = values.size();

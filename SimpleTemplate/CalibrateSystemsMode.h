@@ -1,5 +1,5 @@
-#ifndef CALIBRATION_MODE_H
-#define CALIBRATION_MODE_H
+#ifndef CALIBRATE_SYSTEMS_MODE_H
+#define CALIBRATE_SYSTEMS_MODE_H
 
 #include "TeleopMode.h"
 #include "Targeting.h"
@@ -15,11 +15,11 @@ namespace RobotSystem {
 	};
 }
 
-class CalibrationMode: public TeleopMode {
+class CalibrateSystemsMode: public TeleopMode {
 public:
 
-	CalibrationMode(Shooter* shooter, ShooterTilt* tilt, Targeting* targeting, EasyController* controller);
-	~CalibrationMode();
+	CalibrateSystemsMode(Shooter* shooter, ShooterTilt* tilt, Targeting* targeting, EasyController* controller);
+	~CalibrateSystemsMode();
 
 	void begin(DriverStationLCD *screen);
 	void execute(DriverStationLCD *screen);

@@ -69,7 +69,7 @@ char* SaveableSetting::getName()
 	return name;
 }
 
-char SaveableSetting::getTypeMarker()
+char* SaveableSetting::getTypeMarker()
 {
 	if (type == integerType)
 	{
@@ -84,22 +84,25 @@ char SaveableSetting::getTypeMarker()
 		return "c";
 	}
 	
-	return "_";
+	return "";
 }
 
 
 char* SaveableSetting::getAsChar()
 {
+	char* stringValue = new char[32];
 	if (type == integerType)
 	{
-		return sprintf("%i", intValue);
+		sprintf(stringValue, "%i", intValue);
 	}
 	else if (type == doubleType)
 	{
-		return sprintf("%d", doubleValue);
+		sprintf(stringValue, "%f", doubleValue);
 	}
 	else if (type == charType)
 	{
-		return sprintf("%s", charValue);
+		sprintf(stringValue, "%s", charValue);
 	}
+	
+	return stringValue;
 }

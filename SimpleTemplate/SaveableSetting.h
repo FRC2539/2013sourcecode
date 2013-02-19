@@ -16,7 +16,7 @@ public:
 	void getByReference(char* &reference);
 	
 	char* getName();
-	char getTypeMarker();
+	char* getTypeMarker();
 	char* getAsChar();
 	
 protected:

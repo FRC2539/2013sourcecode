@@ -1,6 +1,8 @@
 #ifndef SETTINGS_CACHE_H
 #define SETTINGS_CACHE_H
 
+#define SETTINGS_FILE "robot_settings.txt"
+
 #include "SaveableSetting.h"
 #include <vector>
 
@@ -22,12 +24,11 @@ public:
 	
 protected:
 	
-	SaveableSetting* getByName(char* name);
+	static SaveableSetting* getByName(char* name);
 
-	vector<SaveableSetting*> values;
-	const static char* settingsFile = "robot_settings.txt";
+	static vector<SaveableSetting*> values;
 	
-	SettingsCache* instance;
+	static SettingsCache* instance;
 	
 };
 
