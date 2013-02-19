@@ -1,4 +1,5 @@
 #include "WPILib.h"
+#include "SettingsCache.h"
 #include "Shooter.h"
 #include "ShooterTilt.h"
 #include "CANDrive.h"
@@ -107,6 +108,7 @@ protected:
 	CANJaguar leftDrive;
 	DoubleSolenoid trigger;
 	Compressor compressor;
+	SettingsCache settings;
 	CANDrive drive;
 	Shooter shooter;
 	ShooterTilt shooterTilt;

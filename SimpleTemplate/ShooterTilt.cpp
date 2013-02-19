@@ -1,4 +1,5 @@
 #include "ShooterTilt.h"
+#include "SettingsCache.h"
 #include "Commands/WaitCommand.h"
 #include <fstream>
 #include <iostream>
@@ -17,22 +18,13 @@ ShooterTilt::ShooterTilt(CANJaguar* m, int t, int b, int c):
 	
 	motor = m;	
 
-	ifstream settings(saveFile);
-	if (settings.is_open())
-	{
-		settings >> currentPosition;
-	}
-	else
-	{
-		currentPosition = -1;
-	}
+	SettingsCache::getByReference("tilt_position", currentPosition, -1);
 	lastDirection = 0;
 }
 
 ShooterTilt::~ShooterTilt()
 {
-	ofstream settings(saveFile);
-	settings << currentPosition;
+	SettingsCache::setValue("tilt_position", currentPosition);
 }
 
 void ShooterTilt::goToPosition(int position)
