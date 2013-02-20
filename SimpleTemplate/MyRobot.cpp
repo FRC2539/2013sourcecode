@@ -84,7 +84,7 @@ class RobotDemo: public SimpleRobot {
 	Compressor compressor;
 	Task t_trackTicks;
 	Timer timer;
-	
+
 	//RobotDrive myRobot; // robot drive system
 
 private:
@@ -107,8 +107,8 @@ public:
 		trigger(1, 2),// as they are declared above.
 		compressor(1, 1),
 		t_trackTicks("trackTicks", (FUNCPTR) s_trackTicks)
-		
-				
+
+
 	//myRobot(leftDrive, rightDrive) // these must be initialized in the same order
 	{
 		//myRobot.SetExpiration(0.1);
@@ -120,66 +120,88 @@ public:
 	 * autonomous code
 	 */
 	void Autonomous(void) {
-		
+
 		DriverStation *station = DriverStation::GetInstance();
 		DriverStationLCD *screen = DriverStationLCD::GetInstance();
 		clearLCD(screen);
 		Wait(.1);
-		
+
 		compressor.Start();
 		
-		
+		tickValue = 0;
+
 		if(station->GetDigitalIn(1)){
 			frontWheel.Set(-.64);
 			backWheel.Set(-.56);
-		
+
 			Wait(.05);
-		
+
 			screen->PrintfLine(DriverStationLCD::kUser_Line1, "front:%d",frontWheel.Get());
 			screen->PrintfLine(DriverStationLCD::kUser_Line2, "back :%d",backWheel.Get());
 			screen->UpdateLCD();
-		
-			tickValue = 0;
+
 			
+
 			while(tickValue < 6){
 				trackTicks();
 				tiltToPoint(6);
 			}
-		
+
 			Wait(.3);
-			
+
 			//loop for shooting 3 frisbees
 			for(int i = 0; i < 3; i++){
 				Wait(.9);
-				
+
 				trigger.Set(DoubleSolenoid::kForward);
-		
+
 				Wait(.9);
-		
+
 				trigger.Set(DoubleSolenoid::kReverse);
 			}
-			
+
 			Wait(1);
-			
+
 			frontWheel.Set(0);
 			backWheel.Set(0);
-			
+
 			//
-			if(station->GetDigitalIn(2)){
-				arcadeDrive(0,.6);
-				Wait(.4);
-				
-				arcadeDrive(0,0);
-				
-			}
-			if(station->GetDigitalIn(3)){
-				arcadeDrive(0,-.6);
-				Wait(.4);
-				
-				arcadeDrive(0,0);
-			}
+			
+		}
+		if(station->GetDigitalIn(2)){
+			arcadeDrive(0,.6);
+			Wait(.4);
+
+			arcadeDrive(0,0);
+
+		}
+		if(station->GetDigitalIn(3)){
+			arcadeDrive(0,-.6);
+			Wait(.4);
+
+			arcadeDrive(0,0);
 		}
 		
+		if(station->GetDigitalIn(4)){
+			
+			frontWheel.Set(-.48);
+			backWheel.Set(-.56);
+			
+			while(tickValue < 9){
+				trackTicks();
+				tiltToPoint(9);
+			}
+			
+			for(int i = 0; i < 3; i++){
+				Wait(.9);
+
+				trigger.Set(DoubleSolenoid::kForward);
+
+				Wait(.9);
+
+				trigger.Set(DoubleSolenoid::kReverse);
+			}
+		}
 	}
 
 	/**
@@ -199,7 +221,7 @@ public:
 		//t_trackTicks.Start();
 
 		GoalPosition highestGoal;
-		
+
 		//**************************************************************
 		//***************************MAIN LOOP**************************
 		//**************************************************************
@@ -230,15 +252,15 @@ public:
 				rightDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 				leftDrive.ConfigNeutralMode(CANJaguar::kNeutralMode_Brake);
 			}
-			
-			
+
+
 			if(leftStick.GetRawButton(2)){
 				highestGoal = analyzeImage(screen);
 			}
 			if(leftStick.GetRawButton(1)){
 				tiltToPoint(2);
 			}
-			
+
 			screen->PrintfLine(DriverStationLCD::kUser_Line1,
 					"Front Speed: %f", frontWheel.Get());
 			screen->PrintfLine(DriverStationLCD::kUser_Line2, "Back Speed: %f",
@@ -315,7 +337,7 @@ public:
 			if (tiltEncoder.Get()) {
 				lastTrue = false;
 			}
-			
+
 			if(!tiltTop.Get()){
 				tickValue = 0;
 			}
@@ -427,10 +449,10 @@ public:
 
 		timer.Reset();
 		timer.Start();
-		
+
 		clearLCD(screen);
 		AxisCamera &camera = AxisCamera::GetInstance("10.25.39.11");  //To use the Axis camera uncomment this line
-		
+
 		Scores* scores;
 		Threshold threshold(100, 180, 200, 255, 200, 255);
 		GoalPosition position;
@@ -443,12 +465,12 @@ public:
 			screen->PrintfLine(DriverStationLCD::kUser_Line1,
 					"image is not valid");
 			screen->UpdateLCD();
-			
+
 			return position;
 		}
 
 		BinaryImage *thresholdImage;
-		
+
 		try{
 			thresholdImage = image->ThresholdHSV(threshold);
 		}catch(int e){
@@ -485,7 +507,7 @@ public:
 			scores[i].xEdge = scoreXEdge(thresholdImage, report);
 			scores[i].yEdge = scoreYEdge(thresholdImage, report);
 
-			
+
 
 			if (scoreCompare(scores[i], false)) {
 
@@ -536,7 +558,7 @@ public:
 		screen->UpdateLCD();
 		return position;
 	}
-	
+
 	//*********************supporting image functions*********************
 
 	bool scoreCompare(Scores scores, bool outer) {
@@ -552,7 +574,7 @@ public:
 
 		return isTarget;
 	}
-	
+
 	double scoreXEdge(BinaryImage *image, ParticleAnalysisReport *report){
 		double total = 0;
 		LinearAverages *averages = imaqLinearAverages2(image->GetImaqImage(), IMAQ_COLUMN_AVERAGES, report->boundingRect);
@@ -565,7 +587,7 @@ public:
 		imaqDispose(averages);              //let IMAQ dispose of the averages struct
 		return total;
 	}
-	
+
 	double scoreYEdge(BinaryImage *image, ParticleAnalysisReport *report){
 		double total = 0;
 		LinearAverages *averages = imaqLinearAverages2(image->GetImaqImage(), IMAQ_ROW_AVERAGES, report->boundingRect);
@@ -579,7 +601,7 @@ public:
 		imaqDispose(averages);            //let IMAQ dispose of the averages struct
 		return total;
 	} 
-	
+
 	double computeDistance (BinaryImage *image, ParticleAnalysisReport *report, bool outer) {
 		double rectShort, height;
 		int targetHeight;
@@ -588,31 +610,31 @@ public:
 		//on skewed rectangles
 		height = min(report->boundingRect.height, rectShort);
 		targetHeight = outer ? 29 : 21;
-	  
+
 		return X_IMAGE_RES * targetHeight / (height * 12 * 2 * tan(VIEW_ANGLE*PI/(180*2)));
 	}
-	
+
 	double scoreAspectRatio(BinaryImage *image, ParticleAnalysisReport *report, bool outer){
 		double rectLong, rectShort, idealAspectRatio, aspectRatio;
 		idealAspectRatio = outer ? (62/29) : (62/20);  //Dimensions of goal opening + 4 inches on all 4 sides for reflective tape
-	   
+
 		imaqMeasureParticle(image->GetImaqImage(), report->particleIndex, 0, IMAQ_MT_EQUIVALENT_RECT_LONG_SIDE, &rectLong);
 		imaqMeasureParticle(image->GetImaqImage(), report->particleIndex, 0, IMAQ_MT_EQUIVALENT_RECT_SHORT_SIDE, &rectShort);
 		//Divide width by height to measure aspect ratio
 		if(report->boundingRect.width > report->boundingRect.height){
-			
+
 			//particle is wider than it is tall, divide long by short
 			aspectRatio = 100*(1-fabs((1-((rectLong/rectShort)/idealAspectRatio))));
-			
+
 		} else {
-			
+
 			//particle is taller than it is wide, divide short by long
 			aspectRatio = 100*(1-fabs((1-((rectShort/rectLong)/idealAspectRatio))));
-			
+
 		}
 	return (max(0, min(aspectRatio, 100)));    //force to be in range 0-100
 	}
-	
+
 	double scoreRectangularity(ParticleAnalysisReport *report){
 		if(report->boundingRect.width*report->boundingRect.height !=0){
 			return 100*report->particleArea/(report->boundingRect.width*report->boundingRect.height);
@@ -622,7 +644,7 @@ public:
 	}
 
 	//********************end supporting vision code*****************************
-	
+
 	void clearLCD(DriverStationLCD* screen){
 		screen->PrintfLine(DriverStationLCD::kUser_Line1, "");
 		screen->PrintfLine(DriverStationLCD::kUser_Line2, "");
@@ -631,9 +653,8 @@ public:
 		screen->PrintfLine(DriverStationLCD::kUser_Line5, "");
 		screen->PrintfLine(DriverStationLCD::kUser_Line6, "");
 	}
-	
+
 };
 
 START_ROBOT_CLASS(RobotDemo)
 ;
-
